@@ -66,6 +66,8 @@ android {
         manifestPlaceholders.TERMUX_STYLING_APP_NAME = "Panix:Styling"
         manifestPlaceholders.TERMUX_TASKER_APP_NAME = "Panix:Tasker"
         manifestPlaceholders.TERMUX_WIDGET_APP_NAME = "Panix:Widget"
+        manifestPlaceholders.PANIX_FALLBACK_HOME_ENABLED = includeX11Module ? "false" : "true"
+        manifestPlaceholders.PANIX_X11_HOME_ENABLED = includeX11Module ? "true" : "false"
 
         if (useExternalNativeBuild) {
             externalNativeBuild {
@@ -119,6 +121,14 @@ android {
         externalNativeBuild {
             ndkBuild {
                 path "src/main/cpp/Android.mk"
+            }
+        }
+    }
+
+    if (includeX11Module) {
+        sourceSets {
+            main {
+                java.srcDir "src/x11/java"
             }
         }
     }

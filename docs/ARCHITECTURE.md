@@ -17,6 +17,13 @@ Current repository state:
   and first boot installs it under Panix's private `files/usr` prefix.
 - `PANIX_INCLUDE_X11_MODULE=1` includes the vendored Termux:X11 `lorie` Android
   library and its shell-loader stub in the Panix APK.
+- X11-enabled builds enable `com.termux.x11.PanixHomeActivity` as the launcher
+  and HOME activity, disable the fallback native dashboard HOME activity, and
+  suppress Termux:X11's standalone launcher entry.
+- `com.termux.x11.PanixHomeActivity` subclasses the vendored Termux:X11
+  `MainActivity`, preserving its `LorieView` surface, input, resize, clipboard,
+  and binder connection path while adding a Panix emergency menu overlay and
+  runtime status on the startup screen.
 - `PanixX11Bridge` starts `com.termux.x11.CmdEntryPoint` through Android
   `app_process` with `CLASSPATH` pointed at the Panix APK and `TMPDIR` pointed at
   Panix's private shared tmp directory.
@@ -33,8 +40,8 @@ Debian GUI application
 
 Major remaining implementation boundaries:
 
-- Replace the intermediate Termux:X11 `MainActivity` surface with an Android
-  native surface hosted directly in `PanixHomeActivity`.
+- Prove the X11-backed Panix HOME activity in a CI-built APK and on-device
+  first-boot acceptance test.
 - Replace `com.termux.x11` package assumptions in loader, broadcasts, and native
   code where they conflict with Panix package identity.
 - Replace `/data/data/com.termux` native path assumptions with Panix paths where

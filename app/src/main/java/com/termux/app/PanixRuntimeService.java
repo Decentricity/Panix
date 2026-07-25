@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
 
+import com.termux.BuildConfig;
 import com.termux.R;
 
 public final class PanixRuntimeService extends Service {
@@ -55,19 +56,19 @@ public final class PanixRuntimeService extends Service {
         return null;
     }
 
-    static void requestStart(Context context) {
+    public static void requestStart(Context context) {
         startWithAction(context, ACTION_START);
     }
 
-    static void requestRestartDesktop(Context context) {
+    public static void requestRestartDesktop(Context context) {
         startWithAction(context, ACTION_RESTART_DESKTOP);
     }
 
-    static void requestStopDesktop(Context context) {
+    public static void requestStopDesktop(Context context) {
         startWithAction(context, ACTION_STOP_DESKTOP);
     }
 
-    static void requestResetDebian(Context context) {
+    public static void requestResetDebian(Context context) {
         startWithAction(context, ACTION_RESET_DEBIAN);
     }
 
@@ -81,7 +82,12 @@ public final class PanixRuntimeService extends Service {
     }
 
     private Notification buildNotification() {
-        Intent contentIntent = new Intent(this, PanixHomeActivity.class);
+        Intent contentIntent = new Intent();
+        if (BuildConfig.PANIX_INCLUDE_X11_MODULE) {
+            contentIntent.setClassName(this, "com.termux.x11.PanixHomeActivity");
+        } else {
+            contentIntent.setClass(this, PanixHomeActivity.class);
+        }
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             flags |= PendingIntent.FLAG_IMMUTABLE;

@@ -43,11 +43,11 @@ Current implemented first-boot behavior:
 
 Current missing first-boot behavior:
 
-- The release APK still needs a fully wired X11 surface hosted directly by Panix
-  Home. The current X11-enabled build opens the Termux:X11 `MainActivity` from
-  the same APK as an intermediate surface.
-- Desktop launch cannot pass acceptance until the embedded X11 path is tested
-  on-device with the bundled rootfs and the surface is moved into Panix Home.
+- Current X11-enabled source hosts the surface through
+  `com.termux.x11.PanixHomeActivity`, a Panix HOME activity that subclasses the
+  vendored Termux:X11 surface activity and adds the Panix emergency menu.
+- Desktop launch cannot pass acceptance until the X11-backed Panix HOME path is
+  built by CI and tested on-device with the bundled rootfs.
 
 Required invariant:
 

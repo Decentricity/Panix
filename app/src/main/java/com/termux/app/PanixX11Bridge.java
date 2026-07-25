@@ -26,6 +26,7 @@ final class PanixX11Bridge {
         try {
             Class.forName("com.termux.x11.CmdEntryPoint", false, context.getClassLoader());
             Class.forName("com.termux.x11.MainActivity", false, context.getClassLoader());
+            Class.forName("com.termux.x11.PanixHomeActivity", false, context.getClassLoader());
             return true;
         } catch (ClassNotFoundException e) {
             return false;
@@ -114,7 +115,7 @@ final class PanixX11Bridge {
 
     static void openSurface(Context context) {
         Intent intent = new Intent();
-        intent.setClassName(context.getPackageName(), "com.termux.x11.MainActivity");
+        intent.setClassName(context.getPackageName(), "com.termux.x11.PanixHomeActivity");
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(intent);
     }

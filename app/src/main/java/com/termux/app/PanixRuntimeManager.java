@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
-final class PanixRuntimeManager {
+public final class PanixRuntimeManager {
 
     static final String STATE_NOT_INSTALLED = "NOT_INSTALLED";
     static final String STATE_VERIFYING_ASSET = "VERIFYING_ASSET";
@@ -156,7 +156,7 @@ final class PanixRuntimeManager {
         worker.start();
     }
 
-    static RuntimeStatus getStatus(Context context) {
+    public static RuntimeStatus getStatus(Context context) {
         String state = readFile(stateFile(context)).trim();
         String detail = readFile(detailFile(context)).trim();
         if (state.isEmpty()) {
@@ -168,7 +168,7 @@ final class PanixRuntimeManager {
         return new RuntimeStatus(state, detail, sWorkerRunning);
     }
 
-    static String readRecentLogs(Context context) {
+    public static String readRecentLogs(Context context) {
         StringBuilder result = new StringBuilder();
         appendFileTail(result, new File(logDir(context), "runtime.log"), 12000);
         appendFileTail(result, new File(logDir(context), "firstboot.log"), 20000);
@@ -664,10 +664,10 @@ final class PanixRuntimeManager {
         return new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH, PROOT_MARKER);
     }
 
-    static final class RuntimeStatus {
-        final String state;
-        final String detail;
-        final boolean workerRunning;
+    public static final class RuntimeStatus {
+        public final String state;
+        public final String detail;
+        public final boolean workerRunning;
 
         RuntimeStatus(String state, String detail, boolean workerRunning) {
             this.state = state;
