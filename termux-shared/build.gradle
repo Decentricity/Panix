@@ -6,6 +6,7 @@ android {
 
     compileSdkVersion project.properties.compileSdkVersion.toInteger()
     ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.properties.ndkVersion
+    def useExternalNativeBuild = (System.getenv("PANIX_USE_EXTERNAL_NATIVE_BUILD") ?: "0") == "1"
 
     dependencies {
         implementation "androidx.appcompat:appcompat:1.6.1"
@@ -36,9 +37,11 @@ android {
         minSdkVersion project.properties.minSdkVersion.toInteger()
         targetSdkVersion project.properties.targetSdkVersion.toInteger()
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        externalNativeBuild {
-            ndkBuild {
-                cppFlags ''
+        if (useExternalNativeBuild) {
+            externalNativeBuild {
+                ndkBuild {
+                    cppFlags ''
+                }
             }
         }
     }
@@ -58,9 +61,11 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    externalNativeBuild {
-        ndkBuild {
-            path file('src/main/cpp/Android.mk')
+    if (useExternalNativeBuild) {
+        externalNativeBuild {
+            ndkBuild {
+                path file('src/main/cpp/Android.mk')
+            }
         }
     }
 

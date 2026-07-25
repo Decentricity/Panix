@@ -1,0 +1,65 @@
+name: Build Panix
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build-arm64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install Android SDK components
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" "ndk;29.0.14206865"
+
+      - name: Install rootfs build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mmdebstrap zstd qemu-user-static binfmt-support ca-certificates
+
+      - name: Build Debian rootfs
+        run: |
+          sudo env OUT_DIR="$PWD/build/rootfs" ./rootfs/build-rootfs.sh
+          sudo chown -R "$USER:$USER" build rootfs/manifests
+          mkdir -p app/src/main/assets
+          cp build/rootfs/debian-trixie-arm64-rootfs.tar.zst app/src/main/assets/
+
+      - name: Build unsigned ARM64 APK
+        env:
+          PANIX_USE_EXTERNAL_NATIVE_BUILD: "1"
+          PANIX_SIGN_RELEASE: "0"
+        run: |
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          ./scripts/build-panix.sh
+
+      - name: Verify outputs
+        run: |
+          test -f app/build/outputs/apk/release/Panix-arm64-v8a.apk
+          test -f app/build/outputs/apk/release/Panix-arm64-v8a.apk.sha256
+          sha256sum -c app/build/outputs/apk/release/Panix-arm64-v8a.apk.sha256
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Panix-arm64-v8a-ci
+          path: |
+            app/build/outputs/apk/release/Panix-arm64-v8a.apk
+            app/build/outputs/apk/release/Panix-arm64-v8a.apk.sha256
+            rootfs/manifests/**
+            build/panix-logs/**
+          if-no-files-found: error
