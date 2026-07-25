@@ -34,7 +34,9 @@ on-device with the bundled rootfs and embedded X11 runtime.
 | HOME manifest entry | Pass | `aapt dump xmltree` shows `android.intent.category.HOME` and `android.intent.category.DEFAULT`. |
 | Direct device install | Blocked | `pm install` cannot read APKs from Termux private storage or shared FUSE paths; adb has no attached device. |
 | Top-level build script | Blocked as intended | `./scripts/build-panix.sh` stops with `missing bundled Debian rootfs asset` until `debian-trixie-arm64-rootfs.tar.zst` is built and copied into `app/src/main/assets/`. |
-| GitHub Actions workflow | Added, not yet run | `.github/workflows/build.yml` builds rootfs and unsigned ARM64 APK artifacts on `ubuntu-latest`. |
+| GitHub Actions workflow | Pass for unsigned CI artifact | The `Build Panix` workflow builds the Debian rootfs, assembles `Panix-arm64-v8a.apk`, verifies its checksum, and uploads the APK/checksum/manifests/logs artifact on `master`. |
+| GitHub Actions unit tests | Pass | The `Unit tests` workflow installs SDK platform `android-36` and runs `./gradlew test` on `master`. |
+| GitHub Actions wrapper validation | Pass | The `Validate Gradle Wrapper` workflow runs on `master`. |
 
 ## Required Acceptance Tests
 
