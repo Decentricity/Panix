@@ -74,7 +74,8 @@ GitHub Actions workflow:
 - It builds an unsigned ARM64 CI APK with `PANIX_INCLUDE_X11_MODULE=1` and
   `PANIX_SIGN_RELEASE=0`.
 - It verifies the APK structure with `scripts/inspect-panix-apk.sh`, including
-  package id, X11-backed Panix HOME launcher, bundled rootfs/PRoot assets,
+  package id, enabled X11-backed Panix HOME launcher, disabled fallback HOME
+  launcher, hidden Termux:X11 `MainActivity`, bundled rootfs/PRoot assets,
   embedded X11 native library, and absence of obvious VNC/RDP files.
 - It uploads a small `Panix-apk-inspection` artifact separately from the large
   APK artifact.
