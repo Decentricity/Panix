@@ -15,6 +15,7 @@ PANIX_USE_EXTERNAL_NATIVE_BUILD=1 PANIX_SIGN_RELEASE=0 ./scripts/build-panix.sh
 To include the embedded Termux:X11 module:
 
 ```sh
+git submodule update --init --recursive
 PANIX_INCLUDE_X11_MODULE=1 PANIX_USE_EXTERNAL_NATIVE_BUILD=1 PANIX_SIGN_RELEASE=0 ./scripts/build-panix.sh
 ```
 
@@ -51,6 +52,10 @@ Current local blocker:
   `-Pandroid.aapt2FromMavenOverride=/data/data/com.termux/files/usr/bin/aapt2`,
   but the X11 module's AIDL/CMake/NDK path still invokes official Linux x86_64
   host binaries.
+- X11-enabled builds also require the Termux:X11 native source submodules under
+  `third_party/termux-x11/lorie/src/main/cpp/`. The build script checks for
+  representative files and reports `git submodule update --init --recursive`
+  when they are missing.
 
 Release signing must use a dedicated Panix keystore outside the repository.
 Do not commit keystores, passwords, or signing properties.
@@ -62,6 +67,7 @@ Current Panix release keystore:
 
 GitHub Actions workflow:
 
+- `.github/workflows/build.yml` checks out submodules recursively.
 - `.github/workflows/build.yml` installs SDK 36, NDK 29, and CMake 3.22.1.
 - It builds the Debian rootfs on `ubuntu-latest`.
 - It builds the pinned Termux PRoot payload.

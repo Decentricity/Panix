@@ -17,6 +17,7 @@ APKSIGNER="${APKSIGNER:-/data/data/com.termux/files/usr/bin/apksigner}"
 PANIX_KEYSTORE_PROPERTIES="${PANIX_KEYSTORE_PROPERTIES:-/data/data/com.termux/files/home/.signing/panix-release.properties}"
 PANIX_SIGN_RELEASE="${PANIX_SIGN_RELEASE:-1}"
 PANIX_USE_EXTERNAL_NATIVE_BUILD="${PANIX_USE_EXTERNAL_NATIVE_BUILD:-0}"
+PANIX_INCLUDE_X11_MODULE="${PANIX_INCLUDE_X11_MODULE:-0}"
 BUILD_LOG_DIR="$REPO_ROOT/build/panix-logs"
 ROOTFS_NAME="debian-trixie-arm64-rootfs.tar.zst"
 ROOTFS_ASSET="$REPO_ROOT/app/src/main/assets/debian-trixie-arm64-rootfs.tar.zst"
@@ -26,6 +27,7 @@ PROOT_NAME="termux-proot-aarch64.tar.zst"
 PROOT_ASSET="$REPO_ROOT/app/src/main/assets/$PROOT_NAME"
 PROOT_ASSET_SHA="$PROOT_ASSET.sha256"
 PROOT_SHA_FILE="$REPO_ROOT/rootfs/manifests/$PROOT_NAME.sha256"
+X11_CPP_DIR="$REPO_ROOT/third_party/termux-x11/lorie/src/main/cpp"
 
 mkdir -p "$BUILD_LOG_DIR"
 
@@ -59,6 +61,12 @@ if [ "$PANIX_SIGN_RELEASE" = 1 ]; then
     require_exec "$ZIPALIGN" "zipalign"
     require_exec "$APKSIGNER" "apksigner"
     require_file "$PANIX_KEYSTORE_PROPERTIES" "Panix signing properties"
+fi
+if [ "$PANIX_INCLUDE_X11_MODULE" = 1 ]; then
+    require_file "$X11_CPP_DIR/xorgproto/include/X11/Xpoll.h.in" "Termux:X11 xorgproto submodule; run git submodule update --init --recursive"
+    require_file "$X11_CPP_DIR/xserver/dix/main.c" "Termux:X11 xserver submodule; run git submodule update --init --recursive"
+    require_file "$X11_CPP_DIR/libx11/src/OpenDis.c" "Termux:X11 libx11 submodule; run git submodule update --init --recursive"
+    require_file "$X11_CPP_DIR/pixman/pixman/pixman.c" "Termux:X11 pixman submodule; run git submodule update --init --recursive"
 fi
 
 if [ ! -e "$ROOTFS_ASSET" ] && [ -e "$REPO_ROOT/build/rootfs/$ROOTFS_NAME" ]; then
