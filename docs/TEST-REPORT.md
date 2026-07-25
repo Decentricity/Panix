@@ -29,6 +29,7 @@ on-device with the bundled rootfs and embedded X11 runtime.
 | Debug APK assemble | Pass | `./gradlew :app:assembleDebug` produced `Panix-debug-arm64-v8a.apk` (36 MB). |
 | Release APK assemble | Pass via CI | `Build Panix` run `30145730437` assembled the X11-enabled ARM64 APK with Debian rootfs and PRoot assets bundled. |
 | Release signing flow | Pass for alpha APK | The CI artifact was zipaligned and signed locally with the Panix release keystore; `apksigner verify --verbose --print-certs` reports v2/v3 signatures with certificate SHA-256 `5f333b9bd88c24174cface1473ba361777a3e66f06f6731ed88fe01770c72a42`. |
+| Signed release APK size | Recorded for alpha APK | The signed APK is 254,069,497 bytes; the unsigned CI artifact is 253,971,502 bytes before zipalign/signing. |
 | Release APK SHA-256 | Recorded for alpha APK | `527bc8c5afd90c8d83786943b726178b4fae5a2d242264d5f222192ec3188fa8`. |
 | APK metadata | Pass | `aapt dump badging` reports package `io.github.decentricity.panix`, label `Panix`, min SDK 26, target SDK 28, native code `arm64-v8a`, and launcher `com.termux.app.PanixHomeActivity`. |
 | HOME manifest entry | Pass | `aapt dump xmltree` shows `android.intent.category.HOME` and `android.intent.category.DEFAULT`. |
@@ -48,6 +49,7 @@ on-device with the bundled rootfs and embedded X11 runtime.
 | GitHub Actions workflow | Pass for X11-enabled unsigned CI artifact | The `Build Panix` workflow run `30145730437` builds the Debian rootfs, checks out Termux:X11 native submodules, assembles `Panix-arm64-v8a.apk`, verifies its checksum, and uploads the APK/checksum/manifests/logs artifact on `master`. |
 | GitHub Actions unit tests | Pass | The `Unit tests` workflow installs SDK platform `android-36` and runs `./gradlew test` on `master`. |
 | GitHub Actions wrapper validation | Pass | The `Validate Gradle Wrapper` workflow runs on `master`. |
+| GitHub alpha prerelease | Pass | `panix-v0.1.0-alpha.1` is published at `https://github.com/Decentricity/Panix/releases/tag/panix-v0.1.0-alpha.1` with the signed APK, checksum, signing verification report, and rootfs/PRoot provenance assets. |
 | Signed alpha APK in shared storage | Pass | `/storage/emulated/0/Download/Panix/Panix-arm64-v8a.apk` matches the recorded SHA-256. |
 | Local phone unit tests | Fails in Robolectric harness | `./gradlew test` fails in existing `FileReceiverActivityTest` cleanup with `ShadowActivityThread.reset: ActivityThread not set`; this is not a Panix runtime assertion failure. |
 

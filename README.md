@@ -25,7 +25,7 @@ Panix is not affiliated with, endorsed by, or released by the Termux project.
 
 Current alpha artifact details:
 
-- APK size: 253,971,502 bytes.
+- Signed APK size: 254,069,497 bytes.
 - Bundled Debian rootfs size: 219,263,824 bytes compressed.
 - Bundled PRoot payload size: 113,366 bytes compressed.
 - APK SHA-256:
