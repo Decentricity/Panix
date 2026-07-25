@@ -40,6 +40,12 @@ jobs:
           cp build/rootfs/debian-trixie-arm64-rootfs.tar.zst app/src/main/assets/
           cp rootfs/manifests/debian-trixie-arm64-rootfs.tar.zst.sha256 app/src/main/assets/
 
+      - name: Build PRoot payload
+        run: |
+          ./scripts/build-proot-payload.sh
+          cp build/proot/termux-proot-aarch64.tar.zst app/src/main/assets/
+          cp rootfs/manifests/termux-proot-aarch64.tar.zst.sha256 app/src/main/assets/
+
       - name: Build unsigned ARM64 APK
         env:
           PANIX_USE_EXTERNAL_NATIVE_BUILD: "1"

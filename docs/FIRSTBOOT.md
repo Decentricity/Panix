@@ -6,6 +6,7 @@ Target states:
 
 - `NOT_INSTALLED`
 - `VERIFYING_ASSET`
+- `INSTALLING_PROOT`
 - `EXTRACTING`
 - `CONFIGURING`
 - `READY`
@@ -23,6 +24,8 @@ Current implemented first-boot behavior:
 
 - Installs the embedded Termux bootstrap into Panix's private `files/usr` path
   when needed so bundled `bash`, `tar`, and `zstd` are available.
+- Copies, verifies, and extracts the pinned `termux-proot-aarch64.tar.zst`
+  payload into Panix's private prefix.
 - Copies `debian-trixie-arm64-rootfs.tar.zst` and its `.sha256` file from APK
   assets into Panix private storage.
 - Verifies the rootfs SHA-256 before extraction.
@@ -32,14 +35,14 @@ Current implemented first-boot behavior:
   and a Panix rootfs version marker exist.
 - Moves the staging rootfs into `debian` only after health checks pass.
 - Leaves an existing healthy rootfs in place if a new extraction fails.
+- Starts the XFCE supervisor through bundled PRoot with `PROOT_LOADER`,
+  `PROOT_TMP_DIR`, and `LD_LIBRARY_PATH` pointed at the Panix private prefix.
 
 Current missing first-boot behavior:
 
 - The release APK still needs a fully wired embedded Termux:X11 surface.
-- PRoot and its required Termux shared libraries still need to be bundled into
-  the APK or bootstrap path.
-- Desktop launch and supervision are deliberately reported as failed after the
-  rootfs reaches `READY` until X11 and PRoot integration are complete.
+- Desktop launch cannot pass acceptance until an embedded X server is started
+  and its surface is hosted by Panix Home.
 
 Required invariant:
 

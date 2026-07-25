@@ -36,9 +36,10 @@ is built and signed.
    bundled Debian rootfs, start embedded X11, then start XFCE.
 
 The current development build opens a native Panix Home shell with a foreground
-runtime service. It can start the transactional first-boot path for bundled
-rootfs verification/extraction, but the embedded Debian/X11 desktop launch is
-not wired yet.
+runtime service. It can start the transactional first-boot path, install the
+bundled PRoot runtime, verify/extract the bundled rootfs, and attempt the XFCE
+supervisor. The embedded Termux:X11 surface is not wired yet, so the desktop is
+not acceptance-ready.
 
 ## Recovery
 

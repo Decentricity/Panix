@@ -18,12 +18,16 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 final class PanixRuntimeManager {
 
     static final String STATE_NOT_INSTALLED = "NOT_INSTALLED";
     static final String STATE_VERIFYING_ASSET = "VERIFYING_ASSET";
+    static final String STATE_INSTALLING_PROOT = "INSTALLING_PROOT";
     static final String STATE_EXTRACTING = "EXTRACTING";
     static final String STATE_CONFIGURING = "CONFIGURING";
     static final String STATE_READY = "READY";
@@ -34,8 +38,12 @@ final class PanixRuntimeManager {
 
     private static final String ROOTFS_NAME = "debian-trixie-arm64-rootfs.tar.zst";
     private static final String ROOTFS_SHA_NAME = ROOTFS_NAME + ".sha256";
+    private static final String PROOT_PAYLOAD_NAME = "termux-proot-aarch64.tar.zst";
+    private static final String PROOT_PAYLOAD_SHA_NAME = PROOT_PAYLOAD_NAME + ".sha256";
     private static final String VERSION_MARKER = ".panix-rootfs";
+    private static final String PROOT_MARKER = ".panix-proot";
     private static final long MIN_FREE_BYTES_BEFORE_EXTRACTION = 1536L * 1024L * 1024L;
+    private static final long DESKTOP_START_GRACE_MS = 2500L;
     private static final Object LOCK = new Object();
 
     private static boolean sWorkerRunning;
@@ -96,10 +104,22 @@ final class PanixRuntimeManager {
     static void stopDesktop(Context context) {
         Context appContext = context.getApplicationContext();
         setState(appContext, STATE_STOPPING, "Stopping Panix desktop supervisor.");
+        Process processToStop = null;
         synchronized (LOCK) {
             if (sDesktopProcess != null) {
-                sDesktopProcess.destroy();
+                processToStop = sDesktopProcess;
                 sDesktopProcess = null;
+            }
+        }
+        if (processToStop != null) {
+            processToStop.destroy();
+            try {
+                if (!processToStop.waitFor(2, TimeUnit.SECONDS)) {
+                    processToStop.destroyForcibly();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                processToStop.destroyForcibly();
             }
         }
         deleteFile(lockFile(appContext));
@@ -158,14 +178,16 @@ final class PanixRuntimeManager {
     }
 
     private static void ensureInstalled(Context context) throws Exception {
+        ensureDirectories(context);
+        TermuxInstaller.setupBootstrapForPanixRuntime(context);
+        installProotPayload(context);
+
         if (isRootfsInstalled(context)) {
             setState(context, STATE_READY, "Debian rootfs is installed.");
             return;
         }
 
         setState(context, STATE_VERIFYING_ASSET, "Preparing bundled Debian rootfs asset.");
-        ensureDirectories(context);
-        TermuxInstaller.setupBootstrapForPanixRuntime(context);
         File asset = copyRequiredAsset(context, ROOTFS_NAME);
         File checksumFile = copyRequiredAsset(context, ROOTFS_SHA_NAME);
         String expectedSha = readExpectedSha(checksumFile);
@@ -211,9 +233,126 @@ final class PanixRuntimeManager {
             setState(context, STATE_NOT_INSTALLED, "Debian rootfs is not installed.");
             return;
         }
+        if (!isProotInstalled(context)) {
+            throw new IOException("Bundled PRoot payload is not installed.");
+        }
 
-        setState(context, STATE_STARTING_DESKTOP, "Desktop launch is waiting for embedded Termux:X11 and bundled PRoot integration.");
-        throw new IllegalStateException("Debian rootfs is ready, but embedded Termux:X11 and bundled PRoot launch are not wired yet.");
+        synchronized (LOCK) {
+            if (sDesktopProcess != null) {
+                try {
+                    int exitCode = sDesktopProcess.exitValue();
+                    appendLog(context, "desktop", "Previous desktop supervisor exited with code " + exitCode);
+                    sDesktopProcess = null;
+                } catch (IllegalThreadStateException stillRunning) {
+                    setState(context, STATE_RUNNING, "Panix desktop supervisor is already running.");
+                    return;
+                }
+            }
+        }
+
+        setState(context, STATE_STARTING_DESKTOP, "Starting Debian XFCE through bundled PRoot.");
+        mkdirs(tmpDir(context));
+        mkdirs(runDir(context));
+        mkdirs(exportDir(context));
+        mkdirs(new File(rootfsDir(context), "home/panix/Downloads"));
+        mkdirs(new File(TermuxConstants.TERMUX_HOME_DIR_PATH));
+
+        File desktopLog = new File(logDir(context), "desktop.log");
+        appendLog(desktopLog, "Starting Panix desktop supervisor.");
+
+        List<String> command = new ArrayList<>();
+        command.add(prootBinary(context).getAbsolutePath());
+        command.add("--rootfs=" + rootfsDir(context).getAbsolutePath());
+        command.add("--link2symlink");
+        command.add("--kill-on-exit");
+        command.add("--sysvipc");
+        command.add("--ashmem-memfd");
+        command.add("--change-id=1000:1000");
+        command.add("--bind=/dev");
+        command.add("--bind=/proc");
+        command.add("--bind=/sys");
+        command.add("--bind=" + tmpDir(context).getAbsolutePath() + ":/tmp");
+        command.add("--bind=" + exportDir(context).getAbsolutePath() + ":/home/panix/Downloads");
+        command.add("--cwd=/home/panix");
+        command.add("/usr/bin/env");
+        command.add("-i");
+        command.add("HOME=/home/panix");
+        command.add("USER=panix");
+        command.add("LOGNAME=panix");
+        command.add("SHELL=/bin/bash");
+        command.add("DISPLAY=:1");
+        command.add("LANG=C.UTF-8");
+        command.add("TMPDIR=/tmp");
+        command.add("XDG_RUNTIME_DIR=/tmp/panix-runtime");
+        command.add("PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin");
+        command.add("/bin/bash");
+        command.add("-lc");
+        command.add("mkdir -p \"$XDG_RUNTIME_DIR\" /home/panix/Downloads && chmod 700 \"$XDG_RUNTIME_DIR\" && dbus-launch --exit-with-session startxfce4");
+
+        ProcessBuilder builder = new ProcessBuilder(command);
+        builder.directory(filesDir(context));
+        builder.redirectErrorStream(true);
+        builder.redirectOutput(ProcessBuilder.Redirect.appendTo(desktopLog));
+        builder.environment().put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH);
+        builder.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + ":/system/bin");
+        builder.environment().put("LD_LIBRARY_PATH", TermuxConstants.TERMUX_LIB_PREFIX_DIR_PATH);
+        builder.environment().put("PREFIX", TermuxConstants.TERMUX_PREFIX_DIR_PATH);
+        builder.environment().put("TMPDIR", tmpDir(context).getAbsolutePath());
+        builder.environment().put("PROOT_LOADER", prootLoader(context).getAbsolutePath());
+        builder.environment().put("PROOT_TMP_DIR", tmpDir(context).getAbsolutePath());
+
+        Process process = builder.start();
+        synchronized (LOCK) {
+            sDesktopProcess = process;
+        }
+        writeFile(lockFile(context), "started\n");
+
+        Thread.sleep(DESKTOP_START_GRACE_MS);
+        try {
+            int exitCode = process.exitValue();
+            synchronized (LOCK) {
+                if (sDesktopProcess == process) {
+                    sDesktopProcess = null;
+                }
+            }
+            deleteFile(lockFile(context));
+            throw new IOException("Desktop supervisor exited during startup with code " + exitCode + ". Open Panix logs for details.");
+        } catch (IllegalThreadStateException stillRunning) {
+            setState(context, STATE_RUNNING, "Panix desktop supervisor is running.");
+        }
+    }
+
+    private static void installProotPayload(Context context) throws Exception {
+        File asset = copyRequiredAsset(context, PROOT_PAYLOAD_NAME);
+        File checksumFile = copyRequiredAsset(context, PROOT_PAYLOAD_SHA_NAME);
+        String expectedSha = readExpectedSha(checksumFile);
+        if (isProotInstalled(context, expectedSha)) {
+            return;
+        }
+
+        setState(context, STATE_INSTALLING_PROOT, "Installing bundled PRoot runtime.");
+        String actualSha = sha256(asset);
+        if (!expectedSha.equals(actualSha)) {
+            throw new IOException("Bundled PRoot checksum mismatch: expected " + expectedSha + ", actual " + actualSha);
+        }
+
+        runShell(context,
+            quote(new File(TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH, "zstd").getAbsolutePath()) +
+                " -dc " + quote(asset.getAbsolutePath()) + " | " +
+                quote(new File(TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH, "tar").getAbsolutePath()) +
+                " -C " + quote(filesDir(context).getAbsolutePath()) + " -xf -",
+            new File(logDir(context), "firstboot.log"));
+
+        Os.chmod(prootBinary(context).getAbsolutePath(), 0700);
+        Os.chmod(prootLoader(context).getAbsolutePath(), 0700);
+        File loader32 = new File(TermuxConstants.TERMUX_LIBEXEC_PREFIX_DIR_PATH, "proot/loader32");
+        if (loader32.exists()) {
+            Os.chmod(loader32.getAbsolutePath(), 0700);
+        }
+
+        writeFile(prootMarkerFile(context),
+            "version=5.1.107.86\npayload_sha256=" + expectedSha + "\npackage=io.github.decentricity.panix\n");
+        appendLog(context, "firstboot", "Installed bundled PRoot runtime at " + TermuxConstants.TERMUX_PREFIX_DIR_PATH);
     }
 
     private static void configureRootfs(Context context, File rootfs, String rootfsSha) throws Exception {
@@ -222,6 +361,7 @@ final class PanixRuntimeManager {
         File sudoersDir = new File(rootfs, "etc/sudoers.d");
         mkdirs(tmp);
         mkdirs(home);
+        mkdirs(new File(home, "Downloads"));
         mkdirs(sudoersDir);
         Os.chmod(tmp.getAbsolutePath(), 01777);
 
@@ -265,7 +405,7 @@ final class PanixRuntimeManager {
             }
         } catch (IOException e) {
             throw new IOException("Missing required bundled asset " + name +
-                ". Build Panix with ./scripts/build-panix.sh so the Debian rootfs is packaged.", e);
+                ". Build Panix with ./scripts/build-panix.sh so runtime assets are packaged.", e);
         }
         return output;
     }
@@ -278,6 +418,7 @@ final class PanixRuntimeManager {
         builder.redirectErrorStream(true);
         builder.environment().put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH);
         builder.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + ":/system/bin");
+        builder.environment().put("LD_LIBRARY_PATH", TermuxConstants.TERMUX_LIB_PREFIX_DIR_PATH);
         Process process = builder.start();
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (InputStream input = process.getInputStream()) {
@@ -331,6 +472,14 @@ final class PanixRuntimeManager {
 
     private static boolean isRootfsInstalled(Context context) {
         return new File(rootfsDir(context), VERSION_MARKER).exists();
+    }
+
+    private static boolean isProotInstalled(Context context) {
+        return prootMarkerFile(context).exists() && prootBinary(context).exists() && prootLoader(context).exists();
+    }
+
+    private static boolean isProotInstalled(Context context, String expectedSha) {
+        return isProotInstalled(context) && readFile(prootMarkerFile(context)).contains("payload_sha256=" + expectedSha);
     }
 
     private static String defaultDetailForState(String state) {
@@ -496,6 +645,18 @@ final class PanixRuntimeManager {
 
     private static File lockFile(Context context) {
         return new File(runDir(context), "desktop.lock");
+    }
+
+    private static File prootBinary(Context context) {
+        return new File(TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH, "proot");
+    }
+
+    private static File prootLoader(Context context) {
+        return new File(TermuxConstants.TERMUX_LIBEXEC_PREFIX_DIR_PATH, "proot/loader");
+    }
+
+    private static File prootMarkerFile(Context context) {
+        return new File(TermuxConstants.TERMUX_PREFIX_DIR_PATH, PROOT_MARKER);
     }
 
     static final class RuntimeStatus {

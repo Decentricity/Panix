@@ -13,6 +13,8 @@ Current repository state:
 - `PanixRuntimeService` is registered as Panix's foreground runtime boundary.
 - `PanixRuntimeManager` persists first-boot/session state and can copy, verify,
   extract, configure, reset, and log the bundled Debian rootfs transaction.
+- The build produces a pinned Termux PRoot payload from verified `.deb` files,
+  and first boot installs it under Panix's private `files/usr` prefix.
 
 Target runtime path:
 
@@ -28,9 +30,9 @@ Major remaining implementation boundaries:
 
 - Build Termux:X11 `lorie` as an embedded Panix module rather than a separate APK.
 - Replace `com.termux.x11` package assumptions in loader, broadcasts, and native code.
-- Replace `/data/data/com.termux` native path assumptions with Panix paths.
-- Bundle PRoot and its Termux shared-library dependencies into Panix builds.
-- Connect `PanixRuntimeManager.startDesktop()` to embedded X11, PRoot, D-Bus,
-  and XFCE process supervision.
+- Replace `/data/data/com.termux` native path assumptions with Panix paths where
+  runtime environment overrides are not enough.
+- Connect `PanixRuntimeManager.startDesktop()` to embedded X11 display startup
+  and the in-process Android surface.
 - Bundle and verify `debian-trixie-arm64-rootfs.tar.zst` as a release APK asset.
 - Run XFCE as user `panix` through PRoot with shared `/tmp` for the X11 socket.

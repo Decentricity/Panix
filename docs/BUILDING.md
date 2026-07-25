@@ -23,13 +23,19 @@ The script currently verifies:
 - The bundled Debian rootfs asset and checksum.
 - The bundled rootfs checksum is copied into APK assets beside the rootfs so
   Android first boot can verify the asset.
+- A pinned Termux PRoot payload built from verified `proot`,
+  `libandroid-shmem`, and `libtalloc` package files.
+- The bundled PRoot payload checksum is copied into APK assets beside the
+  payload so Android first boot can verify it.
 - The expected release APK filename, `Panix-arm64-v8a.apk`.
 
 Current local blocker:
 
 - The Debian rootfs asset is built and bundled by GitHub Actions. Local phone
   release builds still need the rootfs asset under `build/rootfs/` or
-  `app/src/main/assets/` before `./scripts/build-panix.sh` can package it.
+  `app/src/main/assets/` before `./scripts/build-panix.sh` can package it. The
+  PRoot payload is small enough for `./scripts/build-panix.sh` to build locally
+  when missing.
 - Official SDK/NDK host tools are Linux x86_64, so Panix's on-phone build path
   generates ARM64 JNI libraries with Termux `clang`/`clang++` and packages them
   from `jniLibs`. Conventional CI hosts can opt back into upstream `ndk-build`
@@ -47,5 +53,6 @@ GitHub Actions workflow:
 
 - `.github/workflows/build.yml` installs SDK 36 and NDK 29.
 - It builds the Debian rootfs on `ubuntu-latest`.
+- It builds the pinned Termux PRoot payload.
 - It builds an unsigned ARM64 CI APK with `PANIX_SIGN_RELEASE=0`.
 - It uploads the APK, SHA-256 file, rootfs manifests, and build logs.

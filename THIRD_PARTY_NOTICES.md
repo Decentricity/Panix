@@ -20,6 +20,14 @@ Panix is an independent derivative and is not an official Termux release.
 - License: GPL-compatible upstream licensing as provided by the project.
 - Use: Reference for PRoot distribution setup and shared `/tmp` behavior.
 
+## PRoot Runtime Packages
+
+- Source packages: Termux `proot`, `libandroid-shmem`, and `libtalloc`.
+- Binary source: https://packages.termux.dev/apt/termux-main
+- Use: Bundled unprivileged Debian runtime payload under Panix's private prefix.
+- License notices: The payload keeps package copyright files under
+  `usr/share/doc/*/copyright`.
+
 ## Termux Packages
 
 - Source: https://github.com/termux/termux-packages
