@@ -72,7 +72,7 @@ fi
 export ANDROID_HOME
 export ANDROID_SDK_ROOT
 export JAVA_HOME
-export GRADLE_USER_HOME="${GRADLE_USER_HOME:-/data/data/com.termux/files/home/.gradle}"
+export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$HOME/.gradle}"
 export PATH="$JAVA_HOME/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
 
 cd "$REPO_ROOT"
