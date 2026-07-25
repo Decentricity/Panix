@@ -8,6 +8,9 @@ Current status: source integration is in progress. An alpha APK has been built
 and signed, but no acceptance-tested final v0.1.0 release has passed on-device
 first-boot testing yet.
 
+For the remaining execution checklist and workstation handoff, see
+[`AGENTS.md`](AGENTS.md).
+
 ## What Panix Is
 
 Panix is an experimental, independent Termux-derived Android app. The goal is a
@@ -89,6 +92,7 @@ See `docs/BUILDING.md` for current toolchain requirements and blockers.
 
 ## Documentation
 
+- `AGENTS.md`
 - `UPSTREAMS.md`
 - `THIRD_PARTY_NOTICES.md`
 - `docs/ARCHITECTURE.md`
