@@ -63,65 +63,85 @@ dependencies {
     compileOnly project(':x11-shell-loader-stub')
 }
 afterEvaluate {
-    tasks.register("generatePrefs") {
-        //noinspection UnnecessaryQualifiedReference
-        def xml = groovy.xml.DOMBuilder.parse((new StringReader(file('src/main/res/xml/preferences.xml').text)))
-        def preferenceNodes = xml.documentElement.getElementsByTagName("*")
-        def preferences = []
+    def generatedJavaDir = file("$buildDir/generated/java")
+    def generatedPrefsFile = file("$buildDir/generated/java/com/termux/x11/Prefs.java")
+    def generatedShortcutsFile = file("$buildDir/generated/templateRes/xml/shortcuts.xml")
 
-        for (int i = 0; i < preferenceNodes.length; i++) {
-            def node = preferenceNodes.item(i)
-            if (node.nodeName == 'EditTextPreference' && node.getAttribute("app:key") != "extra_keys_config")
-                preferences << [ type: 'String',  key: node.getAttribute("app:key"), default: node.getAttribute("app:defaultValue") ]
-            else if (node.nodeName == 'SeekBarPreference')
-                preferences << [ type: 'Int', key: node.getAttribute("app:key"), default: node.getAttribute("app:defaultValue") ]
-            else if (node.nodeName == 'ListPreference') {
-                def entries = node.getAttribute("app:entries")
-                def values = node.getAttribute("app:entryValues")
-                preferences << [type: 'List', key: node.getAttribute("app:key"), default: node.getAttribute("app:defaultValue"),
-                                entries: entries.substring(7, entries.length()), values: values.substring(7, values.length())]
+    def generatePrefsTask = tasks.register("generatePrefs") {
+        inputs.file file('src/main/res/xml/preferences.xml')
+        outputs.file generatedPrefsFile
+
+        doLast {
+            //noinspection UnnecessaryQualifiedReference
+            def xml = groovy.xml.DOMBuilder.parse((new StringReader(file('src/main/res/xml/preferences.xml').text)))
+            def preferenceNodes = xml.documentElement.getElementsByTagName("*")
+            def preferences = []
+
+            for (int i = 0; i < preferenceNodes.length; i++) {
+                def node = preferenceNodes.item(i)
+                if (node.nodeName == 'EditTextPreference' && node.getAttribute("app:key") != "extra_keys_config")
+                    preferences << [ type: 'String',  key: node.getAttribute("app:key"), default: node.getAttribute("app:defaultValue") ]
+                else if (node.nodeName == 'SeekBarPreference')
+                    preferences << [ type: 'Int', key: node.getAttribute("app:key"), default: node.getAttribute("app:defaultValue") ]
+                else if (node.nodeName == 'ListPreference') {
+                    def entries = node.getAttribute("app:entries")
+                    def values = node.getAttribute("app:entryValues")
+                    preferences << [type: 'List', key: node.getAttribute("app:key"), default: node.getAttribute("app:defaultValue"),
+                                    entries: entries.substring(7, entries.length()), values: values.substring(7, values.length())]
+                }
+                else if (node.nodeName == 'SwitchPreferenceCompat')
+                    preferences << [ type: 'Boolean',  key: node.getAttribute("app:key"), default: node.getAttribute("app:defaultValue") ]
             }
-            else if (node.nodeName == 'SwitchPreferenceCompat')
-                preferences << [ type: 'Boolean',  key: node.getAttribute("app:key"), default: node.getAttribute("app:defaultValue") ]
+
+            generatedPrefsFile.getParentFile().exists() || generatedPrefsFile.getParentFile().mkdirs()
+            generatedPrefsFile.delete()
+            generatedPrefsFile.createNewFile()
+
+            generatedPrefsFile << 'package com.termux.x11;\n'
+            generatedPrefsFile << 'import java.util.HashMap;\n'
+            generatedPrefsFile << 'import android.content.Context;\n'
+            generatedPrefsFile << 'import com.termux.x11.utils.TermuxX11ExtraKeys;\n'
+            generatedPrefsFile << '\n'
+            generatedPrefsFile << 'public class Prefs extends LoriePreferences.PrefsProto {\n'
+            preferences.each {
+                if (it.type == 'Int' || it.type == 'Boolean')
+                    generatedPrefsFile << "  public final ${it.type}Preference ${it.key} = new ${it.type}Preference(\"${it.key}\", ${it.default});\n"
+                else if (it.type == 'String')
+                    generatedPrefsFile << "  public final StringPreference ${it.key} = new StringPreference(\"${it.key}\", \"${it.default}\");\n"
+                else if (it.type == 'List')
+                    generatedPrefsFile << "  public final ${it.type}Preference ${it.key} = new ${it.type}Preference(\"${it.key}\", \"${it.default}\", R.array.${it.entries}, R.array.${it.values});\n"
+            }
+            generatedPrefsFile << '  public final StringPreference extra_keys_config = new StringPreference("extra_keys_config", TermuxX11ExtraKeys.DEFAULT_IVALUE_EXTRA_KEYS);\n'
+            generatedPrefsFile << '  public final HashMap<String, Preference> keys = new HashMap<>() {{\n'
+            preferences.each { generatedPrefsFile << '    put("' + it.key + '", ' + it.key + ');\n' }
+            generatedPrefsFile << '    put("extra_keys_config", extra_keys_config);\n'
+            generatedPrefsFile << '  }};\n'
+            generatedPrefsFile << '\n'
+            generatedPrefsFile << '  public Prefs(Context ctx) {\n'
+            generatedPrefsFile << '    super(ctx);\n'
+            generatedPrefsFile << '  }\n'
+            generatedPrefsFile << '}\n'
         }
+    }
+    preBuild.dependsOn generatePrefsTask
 
-        def out = file('build/generated/java/com/termux/x11/Prefs.java')
-        out.getParentFile().exists() || out.getParentFile().mkdirs()
-        out.delete()
-        out.createNewFile()
+    def generateShortcutsTask = tasks.register("generateShortcuts") {
+        inputs.file file('src/main/templates/xml/shortcuts.xml')
+        outputs.file generatedShortcutsFile
 
-        out << 'package com.termux.x11;\n'
-        out << 'import java.util.HashMap;\n'
-        out << 'import android.content.Context;\n'
-        out << 'import com.termux.x11.utils.TermuxX11ExtraKeys;\n'
-        out << '\n'
-        out << 'public class Prefs extends LoriePreferences.PrefsProto {\n'
-        preferences.each {
-            if (it.type == 'Int' || it.type == 'Boolean')
-                out << "  public final ${it.type}Preference ${it.key} = new ${it.type}Preference(\"${it.key}\", ${it.default});\n"
-            else if (it.type == 'String')
-                out << "  public final StringPreference ${it.key} = new StringPreference(\"${it.key}\", \"${it.default}\");\n"
-            else if (it.type == 'List')
-                out << "  public final ${it.type}Preference ${it.key} = new ${it.type}Preference(\"${it.key}\", \"${it.default}\", R.array.${it.entries}, R.array.${it.values});\n"
+        doLast {
+            generatedShortcutsFile.getParentFile().exists() || generatedShortcutsFile.getParentFile().mkdirs()
+            generatedShortcutsFile.text = file('src/main/templates/xml/shortcuts.xml').text
+                    .replace('@@APPLICATION_ID@@', hostApplicationId)
         }
-        out << '  public final StringPreference extra_keys_config = new StringPreference("extra_keys_config", TermuxX11ExtraKeys.DEFAULT_IVALUE_EXTRA_KEYS);\n'
-        out << '  public final HashMap<String, Preference> keys = new HashMap<>() {{\n'
-        preferences.each { out << '    put("' + it.key + '", ' + it.key + ');\n' }
-        out << '    put("extra_keys_config", extra_keys_config);\n'
-        out << '  }};\n'
-        out << '\n'
-        out << '  public Prefs(Context ctx) {\n'
-        out << '    super(ctx);\n'
-        out << '  }\n'
-        out << '}\n'
     }
-    preBuild.dependsOn generatePrefs
+    preBuild.dependsOn generateShortcutsTask
 
-    tasks.register("generateShortcuts") {
-        def out = file('build/generated/templateRes/xml/shortcuts.xml')
-        out.getParentFile().exists() || out.getParentFile().mkdirs()
-        out.text = file('src/main/templates/xml/shortcuts.xml').text
-                .replace('@@APPLICATION_ID@@', hostApplicationId)
+    android.libraryVariants.all { variant ->
+        def variantName = variant.name.capitalize()
+        tasks.named("compile${variantName}JavaWithJavac").configure {
+            dependsOn generatePrefsTask
+            source generatedJavaDir
+        }
     }
-    preBuild.dependsOn generateShortcuts
 }
