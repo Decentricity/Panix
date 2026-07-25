@@ -46,6 +46,12 @@ android {
     packagingOptions.jniLibs.useLegacyPackaging false
     buildFeatures.aidl true
     buildFeatures.buildConfig true
+    sourceSets {
+        main {
+            java.srcDir "$buildDir/generated/java"
+            res.srcDir "$buildDir/generated/templateRes"
+        }
+    }
 }
 
 dependencies {
@@ -109,7 +115,6 @@ afterEvaluate {
         out << '  }\n'
         out << '}\n'
     }
-    android.sourceSets.main.java.srcDirs += 'build/generated/java'
     preBuild.dependsOn generatePrefs
 
     tasks.register("generateShortcuts") {
@@ -118,6 +123,5 @@ afterEvaluate {
         out.text = file('src/main/templates/xml/shortcuts.xml').text
                 .replace('@@APPLICATION_ID@@', hostApplicationId)
     }
-    android.sourceSets.main.res.srcDirs += 'build/generated/templateRes'
     preBuild.dependsOn generateShortcuts
 }
