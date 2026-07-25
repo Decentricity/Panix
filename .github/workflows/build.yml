@@ -72,6 +72,13 @@ jobs:
             build/panix-inspection \
             rootfs/manifests/debian-trixie-arm64-rootfs.provenance
 
+      - name: Upload APK inspection artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Panix-apk-inspection
+          path: build/panix-inspection/**
+          if-no-files-found: error
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:

@@ -100,3 +100,4 @@ fi
 } > "$OUT_DIR/summary.properties"
 
 printf 'Inspection written to %s\n' "$OUT_DIR"
+cat "$OUT_DIR/summary.properties"
