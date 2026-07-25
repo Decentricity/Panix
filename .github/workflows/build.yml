@@ -64,6 +64,14 @@ jobs:
           cd app/build/outputs/apk/release
           sha256sum -c Panix-arm64-v8a.apk.sha256
 
+      - name: Inspect APK structure
+        run: |
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt" \
+            ./scripts/inspect-panix-apk.sh \
+            app/build/outputs/apk/release/Panix-arm64-v8a.apk \
+            build/panix-inspection \
+            rootfs/manifests/debian-trixie-arm64-rootfs.provenance
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -73,4 +81,5 @@ jobs:
             app/build/outputs/apk/release/Panix-arm64-v8a.apk.sha256
             rootfs/manifests/**
             build/panix-logs/**
+            build/panix-inspection/**
           if-no-files-found: error
