@@ -27,6 +27,36 @@ not_contains_regex() {
     ! grep -Eiq "$2" "$1"
 }
 
+write_activity_block() {
+    activity_name="$1"
+    activity_out="$2"
+
+    awk -v activity_name="$activity_name" '
+        /^      E: / {
+            if (in_activity && matched) {
+                printf "%s", block
+            }
+            in_activity = ($0 ~ /^      E: activity \(/)
+            block = in_activity ? $0 "\n" : ""
+            matched = 0
+            next
+        }
+        in_activity {
+            block = block $0 "\n"
+            if (index($0, "\"" activity_name "\"") > 0) {
+                matched = 1
+            }
+        }
+        END {
+            if (in_activity && matched) {
+                printf "%s", block
+            }
+        }
+    ' "$OUT_DIR/androidmanifest-xmltree.txt" > "$activity_out"
+
+    [ -s "$activity_out" ] || fail "APK manifest missing activity: $activity_name"
+}
+
 [ -n "$APK" ] || fail "usage: scripts/inspect-panix-apk.sh <apk> <out-dir> [rootfs-provenance]"
 [ -n "$OUT_DIR" ] || fail "usage: scripts/inspect-panix-apk.sh <apk> <out-dir> [rootfs-provenance]"
 require_file "$APK" "APK"
@@ -41,6 +71,13 @@ mkdir -p "$OUT_DIR"
 unzip -l "$APK" > "$OUT_DIR/apk-contents.txt"
 sha256sum "$APK" > "$OUT_DIR/Panix-arm64-v8a.apk.sha256"
 
+APP_HOME_ACTIVITY="$OUT_DIR/activity-com.termux.app.PanixHomeActivity.txt"
+X11_HOME_ACTIVITY="$OUT_DIR/activity-com.termux.x11.PanixHomeActivity.txt"
+X11_MAIN_ACTIVITY="$OUT_DIR/activity-com.termux.x11.MainActivity.txt"
+write_activity_block "com.termux.app.PanixHomeActivity" "$APP_HOME_ACTIVITY"
+write_activity_block "com.termux.x11.PanixHomeActivity" "$X11_HOME_ACTIVITY"
+write_activity_block "com.termux.x11.MainActivity" "$X11_MAIN_ACTIVITY"
+
 contains "$OUT_DIR/aapt-badging.txt" "package: name='io.github.decentricity.panix'" ||
     fail "APK package id is not io.github.decentricity.panix"
 contains "$OUT_DIR/aapt-badging.txt" "application-label:'Panix'" ||
@@ -54,12 +91,22 @@ contains "$OUT_DIR/aapt-badging.txt" "native-code: 'arm64-v8a'" ||
 contains "$OUT_DIR/aapt-badging.txt" "launchable-activity: name='com.termux.x11.PanixHomeActivity'" ||
     fail "APK launcher is not the X11-backed Panix HOME activity"
 
+contains "$APP_HOME_ACTIVITY" "android:enabled(0x0101000e)=(type 0x12)0x0" ||
+    fail "fallback Panix HOME activity is enabled in the X11 APK"
+contains "$X11_HOME_ACTIVITY" "android:enabled(0x0101000e)=(type 0x12)0xffffffff" ||
+    fail "X11-backed Panix HOME activity is not enabled"
+contains "$X11_HOME_ACTIVITY" "android.intent.category.LAUNCHER" ||
+    fail "X11-backed Panix HOME activity is missing CATEGORY_LAUNCHER"
+contains "$X11_HOME_ACTIVITY" "android.intent.category.HOME" ||
+    fail "X11-backed Panix HOME activity is missing CATEGORY_HOME"
+contains "$X11_HOME_ACTIVITY" "android.intent.category.DEFAULT" ||
+    fail "X11-backed Panix HOME activity is missing CATEGORY_DEFAULT"
+contains "$X11_HOME_ACTIVITY" "android.intent.category.LEANBACK_LAUNCHER" ||
+    fail "X11-backed Panix HOME activity is missing CATEGORY_LEANBACK_LAUNCHER"
 not_contains_regex "$OUT_DIR/aapt-badging.txt" "launchable-activity: name='com\\.termux\\.x11\\.MainActivity'" ||
     fail "Termux:X11 MainActivity is still exposed as a launcher"
-contains "$OUT_DIR/androidmanifest-xmltree.txt" "android.intent.category.HOME" ||
-    fail "APK manifest does not contain CATEGORY_HOME"
-contains "$OUT_DIR/androidmanifest-xmltree.txt" "android.intent.category.DEFAULT" ||
-    fail "APK manifest does not contain CATEGORY_DEFAULT"
+not_contains_regex "$X11_MAIN_ACTIVITY" "android.intent.category.(LAUNCHER|HOME|LEANBACK_LAUNCHER)" ||
+    fail "Termux:X11 MainActivity still contains launcher or HOME categories"
 
 contains "$OUT_DIR/apk-contents.txt" "assets/debian-trixie-arm64-rootfs.tar.zst" ||
     fail "APK does not contain bundled Debian rootfs"
@@ -91,7 +138,9 @@ fi
     printf 'sha256=%s\n' "$(cut -d ' ' -f 1 "$OUT_DIR/Panix-arm64-v8a.apk.sha256")"
     printf 'package=io.github.decentricity.panix\n'
     printf 'launcher=com.termux.x11.PanixHomeActivity\n'
+    printf 'fallback_home_activity_enabled=false\n'
     printf 'home_category=present\n'
+    printf 'x11_main_launcher=absent\n'
     printf 'native_code=arm64-v8a\n'
     printf 'bundled_rootfs=assets/debian-trixie-arm64-rootfs.tar.zst\n'
     printf 'bundled_proot=assets/termux-proot-aarch64.tar.zst\n'
