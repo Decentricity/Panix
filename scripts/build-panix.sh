@@ -77,7 +77,7 @@ export PATH="$JAVA_HOME/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
 
 cd "$REPO_ROOT"
 
-GRADLE_ARGS="--no-daemon clean :app:assembleRelease"
+GRADLE_ARGS="--no-daemon clean :app:downloadBootstraps :app:assembleRelease"
 if [ -n "$AAPT2_OVERRIDE" ]; then
     GRADLE_ARGS="$GRADLE_ARGS -Pandroid.aapt2FromMavenOverride=$AAPT2_OVERRIDE"
 fi
