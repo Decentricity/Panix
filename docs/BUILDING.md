@@ -30,7 +30,7 @@ The script currently verifies:
 - The bundled Debian rootfs asset and checksum.
 - The bundled rootfs checksum is copied into APK assets beside the rootfs so
   Android first boot can verify the asset.
-- A pinned Termux PRoot payload built from verified `proot`,
+- A pinned Termux PRoot payload built from verified `proot` 5.1.107.87,
   `libandroid-shmem`, and `libtalloc` package files.
 - The bundled PRoot payload checksum is copied into APK assets beside the
   payload so Android first boot can verify it.
@@ -73,4 +73,10 @@ GitHub Actions workflow:
 - It builds the pinned Termux PRoot payload.
 - It builds an unsigned ARM64 CI APK with `PANIX_INCLUDE_X11_MODULE=1` and
   `PANIX_SIGN_RELEASE=0`.
-- It uploads the APK, SHA-256 file, rootfs manifests, and build logs.
+- It verifies the APK structure with `scripts/inspect-panix-apk.sh`, including
+  package id, X11-backed Panix HOME launcher, bundled rootfs/PRoot assets,
+  embedded X11 native library, and absence of obvious VNC/RDP files.
+- It uploads a small `Panix-apk-inspection` artifact separately from the large
+  APK artifact.
+- It uploads the APK, SHA-256 file, rootfs manifests, build logs, and inspection
+  logs.
