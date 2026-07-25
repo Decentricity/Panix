@@ -35,13 +35,20 @@ is built and signed.
 4. During the finished first-boot flow, Panix will verify and extract the
    bundled Debian rootfs, start embedded X11, then start XFCE.
 
-The current development build opens a native Panix Home shell with recovery
-actions. The embedded Debian/X11 desktop is not wired yet.
+The current development build opens a native Panix Home shell with a foreground
+runtime service. It can start the transactional first-boot path for bundled
+rootfs verification/extraction, but the embedded Debian/X11 desktop launch is
+not wired yet.
 
 ## Recovery
 
 The Panix Home shell includes:
 
+- Start Runtime.
+- Restart Desktop.
+- Stop Desktop.
+- Reset Debian.
+- Open Panix Logs.
 - Open Panix Terminal.
 - Open Android Apps.
 - Open Android Settings.

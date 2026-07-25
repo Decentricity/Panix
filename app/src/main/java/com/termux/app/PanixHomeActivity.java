@@ -12,6 +12,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
@@ -32,10 +34,33 @@ public final class PanixHomeActivity extends Activity {
     private static final int MUTED_TEXT_COLOR = Color.rgb(172, 184, 196);
     private static final int ACCENT_COLOR = Color.rgb(74, 222, 128);
 
+    private final Handler statusHandler = new Handler(Looper.getMainLooper());
+    private final Runnable statusPoller = new Runnable() {
+        @Override
+        public void run() {
+            updateRuntimeStatus();
+            statusHandler.postDelayed(this, 1000);
+        }
+    };
+    private TextView status;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(createContentView());
+        PanixRuntimeService.requestStart(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        statusHandler.post(statusPoller);
+    }
+
+    @Override
+    protected void onPause() {
+        statusHandler.removeCallbacks(statusPoller);
+        super.onPause();
     }
 
     private View createContentView() {
@@ -58,8 +83,8 @@ public final class PanixHomeActivity extends Activity {
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
 
-        TextView status = new TextView(this);
-        status.setText("Home shell is available. Embedded Debian/X11 desktop startup is not wired in this build yet.");
+        status = new TextView(this);
+        status.setText("Runtime: checking...");
         status.setTextColor(MUTED_TEXT_COLOR);
         status.setTextSize(16);
         status.setLineSpacing(dp(2), 1.0f);
@@ -77,6 +102,11 @@ public final class PanixHomeActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        panel.addView(button("Start Runtime", v -> PanixRuntimeService.requestStart(this)));
+        panel.addView(button("Restart Desktop", v -> PanixRuntimeService.requestRestartDesktop(this)));
+        panel.addView(button("Stop Desktop", v -> PanixRuntimeService.requestStopDesktop(this)));
+        panel.addView(button("Reset Debian", v -> confirmResetDebian()));
+        panel.addView(button("Open Panix Logs", v -> showPanixLogs()));
         panel.addView(button("Open Panix Terminal", v -> openPanixTerminal()));
         panel.addView(button("Android Apps", v -> showAndroidApps()));
         panel.addView(button("Android Settings", v -> startActivity(new Intent(Settings.ACTION_SETTINGS))));
@@ -104,6 +134,15 @@ public final class PanixHomeActivity extends Activity {
         return button;
     }
 
+    private void updateRuntimeStatus() {
+        if (status == null) {
+            return;
+        }
+        PanixRuntimeManager.RuntimeStatus runtimeStatus = PanixRuntimeManager.getStatus(this);
+        String worker = runtimeStatus.workerRunning ? " working" : "";
+        status.setText("Runtime: " + runtimeStatus.state + worker + "\n" + runtimeStatus.detail);
+    }
+
     private GradientDrawable panelBackground() {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(PANEL_COLOR);
@@ -124,6 +163,33 @@ public final class PanixHomeActivity extends Activity {
         Intent intent = new Intent(this, TermuxActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(intent);
+    }
+
+    private void confirmResetDebian() {
+        new AlertDialog.Builder(this)
+            .setTitle("Reset Debian")
+            .setMessage("Delete the installed Debian rootfs and keep the Panix export directory?")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Reset", (dialog, which) -> PanixRuntimeService.requestResetDebian(this))
+            .show();
+    }
+
+    private void showPanixLogs() {
+        TextView logText = new TextView(this);
+        logText.setText(PanixRuntimeManager.readRecentLogs(this));
+        logText.setTextIsSelectable(true);
+        logText.setTextSize(12);
+        int padding = dp(16);
+        logText.setPadding(padding, padding, padding, padding);
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.addView(logText);
+
+        new AlertDialog.Builder(this)
+            .setTitle("Panix Logs")
+            .setView(scrollView)
+            .setPositiveButton("Close", null)
+            .show();
     }
 
     private void requestHomeRole() {

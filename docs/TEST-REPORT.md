@@ -32,11 +32,15 @@ on-device with the bundled rootfs and embedded X11 runtime.
 | Release APK SHA-256 | Recorded for development APK | `ae5436e345bdd3bc895ca164f4ec50c7cade06214bfc8ac058341ea5eee43675`. |
 | APK metadata | Pass | `aapt dump badging` reports package `io.github.decentricity.panix`, label `Panix`, min SDK 26, target SDK 28, native code `arm64-v8a`, and launcher `com.termux.app.PanixHomeActivity`. |
 | HOME manifest entry | Pass | `aapt dump xmltree` shows `android.intent.category.HOME` and `android.intent.category.DEFAULT`. |
+| Panix runtime service packaged | Pass | `aapt dump xmltree` shows `com.termux.app.PanixRuntimeService` registered and not exported. |
+| Android runtime first-boot state machine | Compile-pass only | `PanixRuntimeManager` implements `NOT_INSTALLED`, `VERIFYING_ASSET`, `EXTRACTING`, `CONFIGURING`, `READY`, `STARTING_DESKTOP`, `RUNNING`, `STOPPING`, and `FAILED`; on-device extraction has not been run. |
+| Rootfs checksum packaged as asset | CI path implemented | `scripts/build-panix.sh` and `.github/workflows/build.yml` copy `debian-trixie-arm64-rootfs.tar.zst.sha256` into APK assets beside the rootfs. |
 | Direct device install | Blocked | `pm install` cannot read APKs from Termux private storage or shared FUSE paths; adb has no attached device. |
-| Top-level build script | Blocked as intended | `./scripts/build-panix.sh` stops with `missing bundled Debian rootfs asset` until `debian-trixie-arm64-rootfs.tar.zst` is built and copied into `app/src/main/assets/`. |
+| Top-level build script | Blocked locally as intended | `./scripts/build-panix.sh` stops with `missing bundled Debian rootfs asset` until `debian-trixie-arm64-rootfs.tar.zst` is built and copied into `build/rootfs/` or `app/src/main/assets/`. |
 | GitHub Actions workflow | Pass for unsigned CI artifact | The `Build Panix` workflow builds the Debian rootfs, assembles `Panix-arm64-v8a.apk`, verifies its checksum, and uploads the APK/checksum/manifests/logs artifact on `master`. |
 | GitHub Actions unit tests | Pass | The `Unit tests` workflow installs SDK platform `android-36` and runs `./gradlew test` on `master`. |
 | GitHub Actions wrapper validation | Pass | The `Validate Gradle Wrapper` workflow runs on `master`. |
+| Local phone unit tests | Fails in Robolectric harness | `./gradlew test` fails in existing `FileReceiverActivityTest` cleanup with `ShadowActivityThread.reset: ActivityThread not set`; this is not a Panix runtime assertion failure. |
 
 ## Required Acceptance Tests
 

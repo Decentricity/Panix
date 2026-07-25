@@ -20,6 +20,7 @@ PANIX_USE_EXTERNAL_NATIVE_BUILD="${PANIX_USE_EXTERNAL_NATIVE_BUILD:-0}"
 BUILD_LOG_DIR="$REPO_ROOT/build/panix-logs"
 ROOTFS_NAME="debian-trixie-arm64-rootfs.tar.zst"
 ROOTFS_ASSET="$REPO_ROOT/app/src/main/assets/debian-trixie-arm64-rootfs.tar.zst"
+ROOTFS_ASSET_SHA="$ROOTFS_ASSET.sha256"
 ROOTFS_SHA_FILE="$REPO_ROOT/rootfs/manifests/debian-trixie-arm64-rootfs.tar.zst.sha256"
 
 mkdir -p "$BUILD_LOG_DIR"
@@ -56,6 +57,8 @@ fi
 
 require_file "$ROOTFS_ASSET" "bundled Debian rootfs asset"
 require_file "$ROOTFS_SHA_FILE" "bundled Debian rootfs checksum"
+cp "$ROOTFS_SHA_FILE" "$ROOTFS_ASSET_SHA"
+require_file "$ROOTFS_ASSET_SHA" "bundled Debian rootfs checksum asset"
 
 if [ "$PANIX_USE_EXTERNAL_NATIVE_BUILD" != 1 ]; then
     "$SCRIPT_DIR/build-bootstrap-lib.sh"

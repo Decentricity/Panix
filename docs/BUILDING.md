@@ -21,11 +21,15 @@ The script currently verifies:
 - Private signing properties at
   `/data/data/com.termux/files/home/.signing/panix-release.properties`.
 - The bundled Debian rootfs asset and checksum.
+- The bundled rootfs checksum is copied into APK assets beside the rootfs so
+  Android first boot can verify the asset.
 - The expected release APK filename, `Panix-arm64-v8a.apk`.
 
 Current local blocker:
 
-- The Debian rootfs asset has not been built or pinned yet.
+- The Debian rootfs asset is built and bundled by GitHub Actions. Local phone
+  release builds still need the rootfs asset under `build/rootfs/` or
+  `app/src/main/assets/` before `./scripts/build-panix.sh` can package it.
 - Official SDK/NDK host tools are Linux x86_64, so Panix's on-phone build path
   generates ARM64 JNI libraries with Termux `clang`/`clang++` and packages them
   from `jniLibs`. Conventional CI hosts can opt back into upstream `ndk-build`

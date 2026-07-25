@@ -375,6 +375,96 @@ final class TermuxInstaller {
         return FileUtils.createDirectoryFile(directory.getAbsolutePath());
     }
 
+    static void setupBootstrapForPanixRuntime(Context context) throws Exception {
+        Error filesDirectoryAccessibleError = TermuxFileUtils.isTermuxFilesDirectoryAccessible(context, true, true);
+        if (filesDirectoryAccessibleError != null) {
+            throw new RuntimeException(Error.getMinimalErrorString(filesDirectoryAccessibleError));
+        }
+
+        if (FileUtils.directoryFileExists(TERMUX_PREFIX_DIR_PATH, true) && !TermuxFileUtils.isTermuxPrefixDirectoryEmpty()) {
+            return;
+        }
+
+        Error error = FileUtils.deleteFile("termux prefix staging directory", TERMUX_STAGING_PREFIX_DIR_PATH, true);
+        if (error != null) {
+            throw new RuntimeException(Error.getErrorMarkdownString(error));
+        }
+
+        error = FileUtils.deleteFile("termux prefix directory", TERMUX_PREFIX_DIR_PATH, true);
+        if (error != null) {
+            throw new RuntimeException(Error.getErrorMarkdownString(error));
+        }
+
+        error = TermuxFileUtils.isTermuxPrefixStagingDirectoryAccessible(true, true);
+        if (error != null) {
+            throw new RuntimeException(Error.getErrorMarkdownString(error));
+        }
+
+        final byte[] buffer = new byte[8096];
+        final List<Pair<String, String>> symlinks = new ArrayList<>(50);
+
+        final byte[] zipBytes = loadZipBytes();
+        try (ZipInputStream zipInput = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+            ZipEntry zipEntry;
+            while ((zipEntry = zipInput.getNextEntry()) != null) {
+                if (zipEntry.getName().equals("SYMLINKS.txt")) {
+                    BufferedReader symlinksReader = new BufferedReader(new InputStreamReader(zipInput));
+                    String line;
+                    while ((line = symlinksReader.readLine()) != null) {
+                        String[] parts = line.split("←");
+                        if (parts.length != 2) {
+                            throw new RuntimeException("Malformed symlink line: " + line);
+                        }
+                        String oldPath = parts[0];
+                        String newPath = TERMUX_STAGING_PREFIX_DIR_PATH + "/" + parts[1];
+                        symlinks.add(Pair.create(oldPath, newPath));
+
+                        error = ensureDirectoryExists(new File(newPath).getParentFile());
+                        if (error != null) {
+                            throw new RuntimeException(Error.getErrorMarkdownString(error));
+                        }
+                    }
+                } else {
+                    String zipEntryName = zipEntry.getName();
+                    File targetFile = new File(TERMUX_STAGING_PREFIX_DIR_PATH, zipEntryName);
+                    boolean isDirectory = zipEntry.isDirectory();
+
+                    error = ensureDirectoryExists(isDirectory ? targetFile : targetFile.getParentFile());
+                    if (error != null) {
+                        throw new RuntimeException(Error.getErrorMarkdownString(error));
+                    }
+
+                    if (!isDirectory) {
+                        try (FileOutputStream outStream = new FileOutputStream(targetFile)) {
+                            int readBytes;
+                            while ((readBytes = zipInput.read(buffer)) != -1) {
+                                outStream.write(buffer, 0, readBytes);
+                            }
+                        }
+                        if (zipEntryName.startsWith("bin/") || zipEntryName.startsWith("libexec") ||
+                            zipEntryName.startsWith("lib/apt/apt-helper") || zipEntryName.startsWith("lib/apt/methods")) {
+                            //noinspection OctalInteger
+                            Os.chmod(targetFile.getAbsolutePath(), 0700);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (symlinks.isEmpty()) {
+            throw new RuntimeException("No SYMLINKS.txt encountered");
+        }
+        for (Pair<String, String> symlink : symlinks) {
+            Os.symlink(symlink.first, symlink.second);
+        }
+
+        if (!TERMUX_STAGING_PREFIX_DIR.renameTo(TERMUX_PREFIX_DIR)) {
+            throw new RuntimeException("Moving termux prefix staging to prefix directory failed");
+        }
+
+        TermuxShellEnvironment.writeEnvironmentToFile(context);
+    }
+
     public static byte[] loadZipBytes() {
         // Only load the shared library when necessary to save memory usage.
         System.loadLibrary("termux-bootstrap");

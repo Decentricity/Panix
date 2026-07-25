@@ -10,6 +10,9 @@ Current repository state:
 - The Android package id is `io.github.decentricity.panix`.
 - Java/Kotlin package namespaces remain `com.termux` for now to reduce refactor risk.
 - A Panix Home activity is present and offers recovery actions.
+- `PanixRuntimeService` is registered as Panix's foreground runtime boundary.
+- `PanixRuntimeManager` persists first-boot/session state and can copy, verify,
+  extract, configure, reset, and log the bundled Debian rootfs transaction.
 
 Target runtime path:
 
@@ -26,6 +29,8 @@ Major remaining implementation boundaries:
 - Build Termux:X11 `lorie` as an embedded Panix module rather than a separate APK.
 - Replace `com.termux.x11` package assumptions in loader, broadcasts, and native code.
 - Replace `/data/data/com.termux` native path assumptions with Panix paths.
-- Add a Java/Kotlin runtime manager state machine for first boot and process supervision.
-- Bundle and verify `debian-trixie-arm64-rootfs.tar.zst` as an APK asset.
+- Bundle PRoot and its Termux shared-library dependencies into Panix builds.
+- Connect `PanixRuntimeManager.startDesktop()` to embedded X11, PRoot, D-Bus,
+  and XFCE process supervision.
+- Bundle and verify `debian-trixie-arm64-rootfs.tar.zst` as a release APK asset.
 - Run XFCE as user `panix` through PRoot with shared `/tmp` for the X11 socket.
