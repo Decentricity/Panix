@@ -2,11 +2,11 @@
 
 Turn an Android phone into a Debian graphical workstation and home launcher.
 
-[Download Panix for ARM64 Android](https://github.com/Decentricity/Panix/releases/latest/download/Panix-arm64-v8a.apk)
+[Download Panix alpha for ARM64 Android](https://github.com/Decentricity/Panix/releases/download/panix-v0.1.0-alpha.1/Panix-arm64-v8a.apk)
 
-Current status: source integration is in progress. No acceptance-tested v0.1.0
-release APK has been published yet, so the download link is expected to work
-only after the first GitHub Release is created.
+Current status: source integration is in progress. An alpha APK has been built
+and signed, but no acceptance-tested final v0.1.0 release has passed on-device
+first-boot testing yet.
 
 ## What Panix Is
 
@@ -23,9 +23,15 @@ Panix is not affiliated with, endorsed by, or released by the Termux project.
 - Sideloading enabled by the user.
 - Enough free storage for the APK, compressed rootfs, and extracted Debian tree.
 
-Exact download size, installed size, extracted rootfs size, APK SHA-256, and
-signing certificate fingerprint will be added after the first release artifact
-is built and signed.
+Current alpha artifact details:
+
+- APK size: 253,971,502 bytes.
+- Bundled Debian rootfs size: 219,263,824 bytes compressed.
+- Bundled PRoot payload size: 113,366 bytes compressed.
+- APK SHA-256:
+  `527bc8c5afd90c8d83786943b726178b4fae5a2d242264d5f222192ec3188fa8`.
+- Signing certificate SHA-256:
+  `5F:33:3B:9B:D8:8C:24:17:4C:FA:CE:14:73:BA:36:17:77:A3:E6:6F:06:F6:73:1E:D8:8F:E0:17:70:C7:2A:42`.
 
 ## Install
 

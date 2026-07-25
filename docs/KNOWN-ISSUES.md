@@ -15,8 +15,8 @@
   until the final Panix-hosted surface replaces the intermediate activity.
 - Termux:X11 native startup still contains hard-coded `/data/data/com.termux`
   paths that must be replaced or parameterized.
-- The Debian 13 Trixie ARM64 rootfs is built and bundled by CI, but there is no
-  signed release artifact yet and the rootfs has not passed on-device first-boot
+- The Debian 13 Trixie ARM64 rootfs is built and bundled by CI, and a signed
+  alpha APK exists, but the rootfs has not passed on-device first-boot
   extraction testing.
 - PRoot is bundled from pinned Termux package payloads, but it has not passed an
   on-device Panix first-boot launch test yet.
