@@ -30,7 +30,7 @@ jobs:
       - name: Install rootfs build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y mmdebstrap zstd qemu-user-static binfmt-support ca-certificates
+          sudo apt-get install -y mmdebstrap zstd qemu-user-static binfmt-support ca-certificates debian-archive-keyring
 
       - name: Build Debian rootfs
         run: |
