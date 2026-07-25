@@ -40,8 +40,8 @@ Debian GUI application
 
 Major remaining implementation boundaries:
 
-- Prove the X11-backed Panix HOME activity in a CI-built APK and on-device
-  first-boot acceptance test.
+- Prove the X11-backed Panix HOME activity in on-device first-boot acceptance
+  testing.
 - Replace `com.termux.x11` package assumptions in loader, broadcasts, and native
   code where they conflict with Panix package identity.
 - Replace `/data/data/com.termux` native path assumptions with Panix paths where

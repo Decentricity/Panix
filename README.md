@@ -47,9 +47,9 @@ bundled PRoot runtime, verify/extract the bundled rootfs, and attempt the XFCE
 supervisor. X11-enabled CI builds package Termux:X11 into the same APK and start
 its command entry point before XFCE. Current source routes launcher/Home intents
 to a Panix-named X11 home activity that subclasses the vendored Termux:X11
-surface and overlays the Panix emergency menu. That X11 Home surface still needs
-full CI packaging and on-device first-boot testing before it can be treated as
-acceptance-ready.
+surface and overlays the Panix emergency menu. CI builds now package that X11
+Home surface, but it still needs on-device first-boot testing before it can be
+treated as acceptance-ready.
 
 ## Recovery
 

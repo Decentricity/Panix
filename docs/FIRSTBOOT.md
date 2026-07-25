@@ -47,7 +47,7 @@ Current missing first-boot behavior:
   `com.termux.x11.PanixHomeActivity`, a Panix HOME activity that subclasses the
   vendored Termux:X11 surface activity and adds the Panix emergency menu.
 - Desktop launch cannot pass acceptance until the X11-backed Panix HOME path is
-  built by CI and tested on-device with the bundled rootfs.
+  tested on-device with the bundled rootfs.
 
 Required invariant:
 

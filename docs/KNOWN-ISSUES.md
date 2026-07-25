@@ -3,8 +3,8 @@
 - No v0.1.0 release APK has passed the acceptance test suite yet.
 - X11-enabled source now routes launcher/Home intents to a Panix X11 HOME
   activity that subclasses the vendored Termux:X11 surface and overlays Panix
-  recovery controls, but this has not passed CI packaging or on-device
-  acceptance yet.
+  recovery controls. CI packaging passes, but on-device acceptance is still
+  untested.
 - `PanixRuntimeService` and `PanixRuntimeManager` provide first-boot state,
   rootfs verification/extraction, reset, logs, and foreground-service plumbing,
   and a bundled PRoot/XFCE supervisor path. X11-enabled builds now start the
@@ -13,8 +13,9 @@
   device.
 - `third_party/termux-x11` is vendored as an optional module and still contains
   separate-package assumptions for `com.termux.x11`.
-- The standalone Termux:X11 launcher entry is suppressed in source, but APK
-  badging must be rechecked after the next X11-enabled CI build.
+- The standalone Termux:X11 launcher entry is suppressed in source and the
+  X11-enabled CI build passes, but APK badging still needs to be rechecked on a
+  downloaded current artifact.
 - Termux:X11 native startup still contains hard-coded `/data/data/com.termux`
   paths that must be replaced or parameterized.
 - The Debian 13 Trixie ARM64 rootfs is built and bundled by CI, and a signed
