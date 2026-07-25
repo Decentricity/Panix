@@ -10,6 +10,7 @@ Target states:
 - `EXTRACTING`
 - `CONFIGURING`
 - `READY`
+- `STARTING_X11`
 - `STARTING_DESKTOP`
 - `RUNNING`
 - `STOPPING`
@@ -37,12 +38,16 @@ Current implemented first-boot behavior:
 - Leaves an existing healthy rootfs in place if a new extraction fails.
 - Starts the XFCE supervisor through bundled PRoot with `PROOT_LOADER`,
   `PROOT_TMP_DIR`, and `LD_LIBRARY_PATH` pointed at the Panix private prefix.
+- In X11-enabled builds, starts the embedded Termux:X11 server on display `:1`
+  through Android `app_process` before launching XFCE.
 
 Current missing first-boot behavior:
 
-- The release APK still needs a fully wired embedded Termux:X11 surface.
-- Desktop launch cannot pass acceptance until an embedded X server is started
-  and its surface is hosted by Panix Home.
+- The release APK still needs a fully wired X11 surface hosted directly by Panix
+  Home. The current X11-enabled build opens the Termux:X11 `MainActivity` from
+  the same APK as an intermediate surface.
+- Desktop launch cannot pass acceptance until the embedded X11 path is tested
+  on-device with the bundled rootfs and the surface is moved into Panix Home.
 
 Required invariant:
 

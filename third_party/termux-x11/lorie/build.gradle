@@ -23,11 +23,12 @@ def hostApplicationId = hostProject.android.defaultConfig.applicationId ?: hostP
 // ndkVersion isn't inherited from the host module; use its value when set,
 // otherwise fall back to a known 16 KB-page-aligning NDK.
 def hostNdkVersion = hostProject.android.ndkVersion ?: "29.0.14206865"
+def panixCompileSdkVersion = rootProject.hasProperty("compileSdkVersion") ? rootProject.properties.compileSdkVersion.toInteger() : 34
 
 android {
     namespace 'com.termux.x11'
     //noinspection GrDeprecatedAPIUsage
-    compileSdkVersion 34
+    compileSdkVersion panixCompileSdkVersion
     ndkVersion hostNdkVersion
     defaultConfig {
         minSdkVersion 26
@@ -53,7 +54,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.4.10"
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0'
     implementation 'androidx.preference:preference:1.2.1'
-    compileOnly project(':shell-loader:stub')
+    compileOnly project(':x11-shell-loader-stub')
 }
 afterEvaluate {
     tasks.register("generatePrefs") {

@@ -15,8 +15,8 @@ on-device with the bundled rootfs and embedded X11 runtime.
 | Termux:X11 source in normal clone | Pass | `third_party/termux-x11` imported as a Git subtree. |
 | Panix app id configured | Pass | `aapt dump badging` reports package `io.github.decentricity.panix`. |
 | Panix offered as Home app | Pending device install | Manifest contains `CATEGORY_HOME` and `CATEGORY_DEFAULT`. |
-| Embedded X11 desktop | Not implemented | X11 source is vendored but not embedded into Panix runtime. |
-| Bundled Debian rootfs | Not implemented | Rootfs build scripts exist; no release asset is pinned. |
+| Embedded X11 desktop | Partial | `PANIX_INCLUDE_X11_MODULE=1` packages the vendored Termux:X11 `lorie` module and `PanixX11Bridge` starts `com.termux.x11.CmdEntryPoint` before XFCE; the surface is still the same-APK Termux:X11 activity, not a Panix Home embedded view. |
+| Bundled Debian rootfs | CI path implemented | GitHub Actions builds and packages `debian-trixie-arm64-rootfs.tar.zst` and its checksum into the unsigned CI APK. |
 
 ## Build Checks
 
@@ -33,12 +33,14 @@ on-device with the bundled rootfs and embedded X11 runtime.
 | APK metadata | Pass | `aapt dump badging` reports package `io.github.decentricity.panix`, label `Panix`, min SDK 26, target SDK 28, native code `arm64-v8a`, and launcher `com.termux.app.PanixHomeActivity`. |
 | HOME manifest entry | Pass | `aapt dump xmltree` shows `android.intent.category.HOME` and `android.intent.category.DEFAULT`. |
 | Panix runtime service packaged | Pass | `aapt dump xmltree` shows `com.termux.app.PanixRuntimeService` registered and not exported. |
-| Android runtime first-boot state machine | Compile-pass only | `PanixRuntimeManager` implements `NOT_INSTALLED`, `VERIFYING_ASSET`, `INSTALLING_PROOT`, `EXTRACTING`, `CONFIGURING`, `READY`, `STARTING_DESKTOP`, `RUNNING`, `STOPPING`, and `FAILED`; on-device extraction has not been run. |
+| Android runtime first-boot state machine | Compile-pass only | `PanixRuntimeManager` implements `NOT_INSTALLED`, `VERIFYING_ASSET`, `INSTALLING_PROOT`, `EXTRACTING`, `CONFIGURING`, `READY`, `STARTING_X11`, `STARTING_DESKTOP`, `RUNNING`, `STOPPING`, and `FAILED`; on-device extraction has not been run. |
 | Rootfs checksum packaged as asset | CI path implemented | `scripts/build-panix.sh` and `.github/workflows/build.yml` copy `debian-trixie-arm64-rootfs.tar.zst.sha256` into APK assets beside the rootfs. |
 | PRoot payload builder | Pass | `./scripts/build-proot-payload.sh` downloaded pinned Termux `proot`, `libandroid-shmem`, and `libtalloc` packages, verified SHA-256s, and produced deterministic payload SHA-256 `42f6e757d2cd5e7bf2ad49007b7f64cbe54f59f327e29bffe2aa7d77b48d6000` (111 KB). |
 | PRoot checksum packaged as asset | CI path implemented | `scripts/build-panix.sh` and `.github/workflows/build.yml` copy `termux-proot-aarch64.tar.zst.sha256` into APK assets beside the PRoot payload. |
 | PRoot payload relocation smoke test | Pass | Extracting the payload under `build/proot-smoke.*/files/usr` and running `proot --version` with `LD_LIBRARY_PATH`, `PROOT_LOADER`, and `PROOT_TMP_DIR` overrides reported `5.1.107.86`. |
-| Runtime PRoot launch path | Compile-pass only | `:app:compileDebugJavaWithJavac` passed after adding the bundled PRoot extraction and XFCE supervisor launch path; embedded X11 is still not wired. |
+| Runtime PRoot launch path | Compile-pass only | `:app:compileDebugJavaWithJavac` passed with the Termux-native `aapt2` override after adding bundled PRoot extraction, X11 startup state, and XFCE supervisor launch path. |
+| Default no-X11 local compile | Pass | `ANDROID_HOME=/data/data/com.termux/files/home/android-tooling/android-sdk ./gradlew --no-daemon -Pandroid.aapt2FromMavenOverride=/data/data/com.termux/files/usr/bin/aapt2 :app:compileDebugJavaWithJavac` completed on the phone. |
+| X11-enabled local phone compile | Blocked by host tools | `PANIX_INCLUDE_X11_MODULE=1 :lorie:compileDebugAidl` reaches the vendored `:lorie` module but cannot run the official Linux x86_64 SDK `aidl` binary under Termux on Android. |
 | Direct device install | Blocked | `pm install` cannot read APKs from Termux private storage or shared FUSE paths; adb has no attached device. |
 | Debug APK with PRoot assets | Pass | `:app:assembleDebug` produced `Panix-debug-arm64-v8a.apk` with SHA-256 `956ffbe3116449693d88f3fa8d0dccb898cded65d1504a4a3b653e608b3dd258`; `zipinfo` shows `assets/termux-proot-aarch64.tar.zst` and `.sha256`. |
 | Top-level build script | Blocked locally as intended | `PANIX_SIGN_RELEASE=0 ./scripts/build-panix.sh` builds/copies the PRoot payload and then stops with `missing bundled Debian rootfs asset` until `debian-trixie-arm64-rootfs.tar.zst` is built and copied into `build/rootfs/` or `app/src/main/assets/`. |

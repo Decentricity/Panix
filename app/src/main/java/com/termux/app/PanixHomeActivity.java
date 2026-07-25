@@ -106,6 +106,7 @@ public final class PanixHomeActivity extends Activity {
         panel.addView(button("Restart Desktop", v -> PanixRuntimeService.requestRestartDesktop(this)));
         panel.addView(button("Stop Desktop", v -> PanixRuntimeService.requestStopDesktop(this)));
         panel.addView(button("Reset Debian", v -> confirmResetDebian()));
+        panel.addView(button("Open X11 Surface", v -> openX11Surface()));
         panel.addView(button("Open Panix Logs", v -> showPanixLogs()));
         panel.addView(button("Open Panix Terminal", v -> openPanixTerminal()));
         panel.addView(button("Android Apps", v -> showAndroidApps()));
@@ -163,6 +164,18 @@ public final class PanixHomeActivity extends Activity {
         Intent intent = new Intent(this, TermuxActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
         startActivity(intent);
+    }
+
+    private void openX11Surface() {
+        if (!PanixX11Bridge.isAvailable(this)) {
+            new AlertDialog.Builder(this)
+                .setTitle("X11 Surface")
+                .setMessage("This build does not include the embedded Termux:X11 module.")
+                .setPositiveButton("Close", null)
+                .show();
+            return;
+        }
+        PanixX11Bridge.openSurface(this);
     }
 
     private void confirmResetDebian() {

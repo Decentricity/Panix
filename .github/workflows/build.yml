@@ -25,12 +25,12 @@ jobs:
       - name: Install Android SDK components
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" "ndk;29.0.14206865"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" "ndk;29.0.14206865" "cmake;3.22.1"
 
       - name: Install rootfs build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y mmdebstrap zstd qemu-user-static binfmt-support ca-certificates debian-archive-keyring
+          sudo apt-get install -y mmdebstrap zstd qemu-user-static binfmt-support ca-certificates debian-archive-keyring bison
 
       - name: Build Debian rootfs
         run: |
@@ -49,6 +49,7 @@ jobs:
       - name: Build unsigned ARM64 APK
         env:
           PANIX_USE_EXTERNAL_NATIVE_BUILD: "1"
+          PANIX_INCLUDE_X11_MODULE: "1"
           PANIX_SIGN_RELEASE: "0"
         run: |
           export ANDROID_SDK_ROOT="$ANDROID_HOME"

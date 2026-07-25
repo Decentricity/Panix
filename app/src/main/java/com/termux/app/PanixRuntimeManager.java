@@ -31,6 +31,7 @@ final class PanixRuntimeManager {
     static final String STATE_EXTRACTING = "EXTRACTING";
     static final String STATE_CONFIGURING = "CONFIGURING";
     static final String STATE_READY = "READY";
+    static final String STATE_STARTING_X11 = "STARTING_X11";
     static final String STATE_STARTING_DESKTOP = "STARTING_DESKTOP";
     static final String STATE_RUNNING = "RUNNING";
     static final String STATE_STOPPING = "STOPPING";
@@ -122,6 +123,7 @@ final class PanixRuntimeManager {
                 processToStop.destroyForcibly();
             }
         }
+        PanixX11Bridge.stopServer();
         deleteFile(lockFile(appContext));
         setState(appContext, isRootfsInstalled(appContext) ? STATE_READY : STATE_NOT_INSTALLED, "Panix desktop is stopped.");
     }
@@ -250,6 +252,10 @@ final class PanixRuntimeManager {
             }
         }
 
+        File desktopLog = new File(logDir(context), "desktop.log");
+        setState(context, STATE_STARTING_X11, "Starting embedded Termux:X11 server.");
+        PanixX11Bridge.startServer(context, tmpDir(context), desktopLog);
+
         setState(context, STATE_STARTING_DESKTOP, "Starting Debian XFCE through bundled PRoot.");
         mkdirs(tmpDir(context));
         mkdirs(runDir(context));
@@ -257,7 +263,6 @@ final class PanixRuntimeManager {
         mkdirs(new File(rootfsDir(context), "home/panix/Downloads"));
         mkdirs(new File(TermuxConstants.TERMUX_HOME_DIR_PATH));
 
-        File desktopLog = new File(logDir(context), "desktop.log");
         appendLog(desktopLog, "Starting Panix desktop supervisor.");
 
         List<String> command = new ArrayList<>();
@@ -280,7 +285,7 @@ final class PanixRuntimeManager {
         command.add("USER=panix");
         command.add("LOGNAME=panix");
         command.add("SHELL=/bin/bash");
-        command.add("DISPLAY=:1");
+        command.add("DISPLAY=" + PanixX11Bridge.DISPLAY);
         command.add("LANG=C.UTF-8");
         command.add("TMPDIR=/tmp");
         command.add("XDG_RUNTIME_DIR=/tmp/panix-runtime");

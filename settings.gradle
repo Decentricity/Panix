@@ -1,1 +1,9 @@
 include ':app', ':termux-shared', ':terminal-emulator', ':terminal-view'
+
+if ((System.getenv("PANIX_INCLUDE_X11_MODULE") ?: "0") == "1") {
+    include ':x11-shell-loader-stub'
+    project(':x11-shell-loader-stub').projectDir = file('third_party/termux-x11/shell-loader/stub')
+
+    include ':lorie'
+    project(':lorie').projectDir = file('third_party/termux-x11/lorie')
+}

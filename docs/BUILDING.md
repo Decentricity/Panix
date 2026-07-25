@@ -12,6 +12,12 @@ For CI builds without the private release key:
 PANIX_USE_EXTERNAL_NATIVE_BUILD=1 PANIX_SIGN_RELEASE=0 ./scripts/build-panix.sh
 ```
 
+To include the embedded Termux:X11 module:
+
+```sh
+PANIX_INCLUDE_X11_MODULE=1 PANIX_USE_EXTERNAL_NATIVE_BUILD=1 PANIX_SIGN_RELEASE=0 ./scripts/build-panix.sh
+```
+
 The script currently verifies:
 
 - Java.
@@ -40,6 +46,11 @@ Current local blocker:
   generates ARM64 JNI libraries with Termux `clang`/`clang++` and packages them
   from `jniLibs`. Conventional CI hosts can opt back into upstream `ndk-build`
   with `PANIX_USE_EXTERNAL_NATIVE_BUILD=1`.
+- X11-enabled builds currently require a conventional Linux CI or workstation
+  host. On-phone Gradle can compile the default no-X11 app when passed
+  `-Pandroid.aapt2FromMavenOverride=/data/data/com.termux/files/usr/bin/aapt2`,
+  but the X11 module's AIDL/CMake/NDK path still invokes official Linux x86_64
+  host binaries.
 
 Release signing must use a dedicated Panix keystore outside the repository.
 Do not commit keystores, passwords, or signing properties.
@@ -51,8 +62,9 @@ Current Panix release keystore:
 
 GitHub Actions workflow:
 
-- `.github/workflows/build.yml` installs SDK 36 and NDK 29.
+- `.github/workflows/build.yml` installs SDK 36, NDK 29, and CMake 3.22.1.
 - It builds the Debian rootfs on `ubuntu-latest`.
 - It builds the pinned Termux PRoot payload.
-- It builds an unsigned ARM64 CI APK with `PANIX_SIGN_RELEASE=0`.
+- It builds an unsigned ARM64 CI APK with `PANIX_INCLUDE_X11_MODULE=1` and
+  `PANIX_SIGN_RELEASE=0`.
 - It uploads the APK, SHA-256 file, rootfs manifests, and build logs.

@@ -38,8 +38,10 @@ is built and signed.
 The current development build opens a native Panix Home shell with a foreground
 runtime service. It can start the transactional first-boot path, install the
 bundled PRoot runtime, verify/extract the bundled rootfs, and attempt the XFCE
-supervisor. The embedded Termux:X11 surface is not wired yet, so the desktop is
-not acceptance-ready.
+supervisor. X11-enabled CI builds package Termux:X11 into the same APK and start
+its command entry point before XFCE; the visual surface is still opened through a
+same-APK Termux:X11 activity rather than being hosted directly inside Panix Home,
+so the desktop is not acceptance-ready yet.
 
 ## Recovery
 
@@ -49,6 +51,7 @@ The Panix Home shell includes:
 - Restart Desktop.
 - Stop Desktop.
 - Reset Debian.
+- Open X11 Surface.
 - Open Panix Logs.
 - Open Panix Terminal.
 - Open Android Apps.

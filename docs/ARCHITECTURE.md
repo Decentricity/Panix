@@ -15,6 +15,11 @@ Current repository state:
   extract, configure, reset, and log the bundled Debian rootfs transaction.
 - The build produces a pinned Termux PRoot payload from verified `.deb` files,
   and first boot installs it under Panix's private `files/usr` prefix.
+- `PANIX_INCLUDE_X11_MODULE=1` includes the vendored Termux:X11 `lorie` Android
+  library and its shell-loader stub in the Panix APK.
+- `PanixX11Bridge` starts `com.termux.x11.CmdEntryPoint` through Android
+  `app_process` with `CLASSPATH` pointed at the Panix APK and `TMPDIR` pointed at
+  Panix's private shared tmp directory.
 
 Target runtime path:
 
@@ -28,11 +33,11 @@ Debian GUI application
 
 Major remaining implementation boundaries:
 
-- Build Termux:X11 `lorie` as an embedded Panix module rather than a separate APK.
-- Replace `com.termux.x11` package assumptions in loader, broadcasts, and native code.
+- Replace the intermediate Termux:X11 `MainActivity` surface with an Android
+  native surface hosted directly in `PanixHomeActivity`.
+- Replace `com.termux.x11` package assumptions in loader, broadcasts, and native
+  code where they conflict with Panix package identity.
 - Replace `/data/data/com.termux` native path assumptions with Panix paths where
   runtime environment overrides are not enough.
-- Connect `PanixRuntimeManager.startDesktop()` to embedded X11 display startup
-  and the in-process Android surface.
 - Bundle and verify `debian-trixie-arm64-rootfs.tar.zst` as a release APK asset.
 - Run XFCE as user `panix` through PRoot with shared `/tmp` for the X11 socket.
