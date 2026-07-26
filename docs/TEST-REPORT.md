@@ -1,59 +1,143 @@
 # Test Report
 
-Date: 2026-07-25
+Date: 2026-07-26
 
-No full acceptance tests have passed yet. This file intentionally does not claim
-a working Panix desktop until the APK is built, installed, and exercised
-on-device with the bundled rootfs and embedded X11 runtime.
+Current status: the local `0.1.0-alpha.2` line now boots the bundled Debian
+13/XFCE desktop as the Android Home screen on the attached ARM64 phone. This is
+real device evidence, not just APK inspection. The final `v0.1.0` tag/release is
+still not published because the full acceptance suite has not been completed.
 
-## Current Checks
+## Current Device Evidence
 
-| Check | Result | Evidence |
+Device:
+
+- `ab6b77a8`, model `CPH2499`, ARM64 Android target attached over adb.
+
+Current test build:
+
+- APK:
+  `build/device-test/rebuild-x11-extra-key/Panix-arm64-v8a-alpha.2-extra-key-test-signed.apk`
+- Version: `0.1.0-alpha.2`
+- SHA-256:
+  `dd77f38a73f513d33a14b707282da4763444ad35969804cd822c7196a8df8020`
+- Test signing certificate SHA-256:
+  `ddea70a805747e040fe393a8c8024b04fb9a0ed2be532c5b37bcdcbbcb0c9872`
+- `apksigner verify --verbose --print-certs`: v2 and v3 signatures verified.
+
+APK inspection:
+
+- Package: `io.github.decentricity.panix`
+- Launcher/Home activity: `com.termux.x11.PanixHomeActivity`
+- Android Home category: present
+- Fallback native Home activity: disabled in APK inspection
+- Standalone Termux:X11 launcher: absent
+- Native code: `arm64-v8a`
+- Bundled rootfs: `assets/debian-trixie-arm64-rootfs.tar.zst`
+- Bundled PRoot: `assets/termux-proot-aarch64.tar.zst`
+- Embedded X11 library: `lib/arm64-v8a/libXlorie.so`
+- `libXlorie.so` zip method: `Stored`, not deflated
+- VNC/RDP files: absent from APK listing
+
+Fresh first boot on device:
+
+- Install command: `adb install --no-incremental`
+- Home command:
+  `cmd package set-home-activity io.github.decentricity.panix/com.termux.x11.PanixHomeActivity`
+- Runtime state: `RUNNING`
+- Screenshot:
+  `docs/images/panix-extra-key-firstboot-xfce.png`
+- Evidence folder:
+  `build/device-test/rebuild-x11-extra-key/fresh-firstboot/`
+
+Runtime log sequence:
+
+```text
+INSTALLING_PROOT: Installing bundled PRoot runtime.
+VERIFYING_ASSET: Preparing bundled Debian rootfs asset.
+EXTRACTING: Extracting Debian rootfs.
+CONFIGURING: Configuring Debian rootfs.
+READY: Debian rootfs is installed.
+STARTING_X11: Starting embedded Termux:X11 server.
+STARTING_DESKTOP: Starting Debian XFCE through bundled PRoot.
+RUNNING: Panix desktop supervisor is running.
+```
+
+X11 log:
+
+```text
+Command: [/system/bin/app_process, -Xnoimage-dex2oat, /, --nice-name=panix-x11, com.termux.x11.CmdEntryPoint, :1]
+TMPDIR=/data/user/0/io.github.decentricity.panix/files/debian/tmp
+XKB_CONFIG_ROOT=/data/user/0/io.github.decentricity.panix/files/debian/usr/share/X11/xkb
+Embedded Termux:X11 server is running.
+```
+
+Observed Panix process path:
+
+```text
+io.github.decentricity.panix
+panix-x11
+proot
+xfce4-session
+dbus-launch
+dbus-daemon
+xfce4-panel
+```
+
+Termux and VNC dependency evidence:
+
+- Existing `com.termux`, `com.termux.api`, `com.termux.window`, and
+  `com.iiordanov.freebVNC` packages on the phone were preserved.
+- No `com.termux.x11` package was installed.
+- Panix started `panix-x11` from its own APK through
+  `CLASSPATH=context.getPackageCodePath()`.
+- Panix started Debian through its bundled `proot` and bundled rootfs under
+  `io.github.decentricity.panix` private app storage.
+- The observed Panix process tree contains no VNC server/viewer process, and
+  the APK listing contains no VNC/RDP payload files.
+
+## Fixed Device Failures
+
+| Failure | Cause | Fix |
 | --- | --- | --- |
-| GitHub repo exists | Pass | `https://github.com/Decentricity/Panix` created and pushed. |
-| Termux app provenance recorded | Pass | `UPSTREAMS.md` records upstream SHAs and retrieval timestamp. |
-| Termux:X11 source in normal clone | Pass | `third_party/termux-x11` imported as a Git subtree. |
-| Panix app id configured | Pass | `aapt dump badging` reports package `io.github.decentricity.panix`. |
-| Panix offered as Home app | Pending device install | Manifest contains `CATEGORY_HOME` and `CATEGORY_DEFAULT`. |
-| Embedded X11 desktop | Partial | `PANIX_INCLUDE_X11_MODULE=1` packages the vendored Termux:X11 `lorie` module and `PanixX11Bridge` starts `com.termux.x11.CmdEntryPoint` before XFCE. Current source enables `com.termux.x11.PanixHomeActivity` as the launcher/HOME activity for X11 builds; it subclasses the vendored Termux:X11 surface activity and adds a Panix emergency menu overlay. CI packaging and APK inspection pass in run `30151312172`; on-device acceptance is still pending. |
-| Bundled Debian rootfs | Pass for packaging | GitHub Actions builds and packages `debian-trixie-arm64-rootfs.tar.zst` and its checksum into the X11-enabled CI APK. |
+| Rootfs extraction failed with tar exit code 2 | Android could not extract special `/dev` nodes and some preserved ownership/mode metadata | Rebuilt the rootfs as Android-extractable and added runtime tar flags `--no-same-owner --no-same-permissions --delay-directory-restore`. |
+| Reset/extraction cleanup failed under `/dev/fd` | Recursive delete followed symlinks | `deleteRecursively()` now uses `NOFOLLOW_LINKS`. |
+| Sudoers rewrite failed with permission denied | Existing app-owned 0440 file could not be overwritten | Runtime file writer chmods existing app-owned read-only files before overwrite. |
+| Embedded X11 exited with code 137 | `libXlorie.so` was deflated in the APK, but `CmdEntryPoint` loads it directly from the APK path | Release packaging keeps native libraries uncompressed and the APK inspector enforces `Stored`. |
+| Embedded X11 exited during startup | XKB config root was not set for the embedded server | `PanixX11Bridge` sets `XKB_CONFIG_ROOT` to the bundled Debian rootfs XKB path. |
+| XFCE desktop was tiny on the phone | X11 display defaults used an unscaled desktop | `PanixHomeActivity` now defaults to scaled resolution, `displayScale=200`, fullscreen, and keeps the extra-key bar visible. |
+| Build script could print success after Gradle failed | Gradle output was piped through `tee`, so POSIX `sh` saw `tee` status | `scripts/build-panix.sh` now preserves Gradle failure status before printing `Built`. |
 
-## Build Checks
+## Acceptance Matrix
 
-| Check | Result | Evidence |
+| Requirement | Status | Evidence |
 | --- | --- | --- |
-| Shell script syntax | Pass | `sh -n scripts/*.sh rootfs/*.sh` completed. |
-| Native bootstrap JNI build | Pass | `scripts/build-bootstrap-lib.sh` built `libtermux-bootstrap.so`. |
-| Terminal emulator JNI build | Pass | `scripts/build-terminal-emulator-lib.sh` built `libtermux.so`. |
-| Shared local-socket JNI build | Pass with warnings | `scripts/build-shared-lib.sh` built `liblocal-socket.so`; warnings are not fatal in the phone helper. |
-| Debug APK assemble | Pass | `./gradlew :app:assembleDebug` produced `Panix-debug-arm64-v8a.apk` (36 MB). |
-| Release APK assemble | Pass via CI | `Build Panix` run `30151312172` assembled the X11-enabled ARM64 APK with Debian rootfs, PRoot assets, and the X11-backed Panix HOME activity bundled. |
-| Release signing flow | Pass for alpha APK | The CI artifact was zipaligned and signed locally with the Panix release keystore; `apksigner verify --verbose --print-certs` reports v2/v3 signatures with certificate SHA-256 `5f333b9bd88c24174cface1473ba361777a3e66f06f6731ed88fe01770c72a42`. |
-| Signed release APK size | Recorded for alpha APK | The signed APK is 254,069,497 bytes; the unsigned CI artifact is 253,971,502 bytes before zipalign/signing. |
-| Release APK SHA-256 | Recorded for alpha APK | `527bc8c5afd90c8d83786943b726178b4fae5a2d242264d5f222192ec3188fa8`. |
-| APK metadata | Pass via CI artifact | `Panix-apk-inspection` artifact `8617853723` from run `30151312172` records package `io.github.decentricity.panix`, label `Panix`, min SDK 26, target SDK 28, native code `arm64-v8a`, APK SHA-256 `444cc947e4a4bf49ddd890e3a65ead911bfcfb7412329c99da0156c23138a199`, launcher `com.termux.x11.PanixHomeActivity`, disabled fallback HOME activity, absent `com.termux.x11.MainActivity` launcher, bundled rootfs/PRoot assets, embedded `libXlorie.so`, and no obvious VNC/RDP files in the APK listing. The published signed alpha APK is older and has not been replaced yet. |
-| HOME manifest entry | Pass via CI artifact | `Panix-apk-inspection` artifact `8617853723` includes per-activity manifest extracts showing `com.termux.x11.PanixHomeActivity` enabled with `LAUNCHER`, `HOME`, `DEFAULT`, and `LEANBACK_LAUNCHER`; `com.termux.app.PanixHomeActivity` is present but disabled for X11 builds. |
-| Panix runtime service packaged | Pass | `aapt dump xmltree` shows `com.termux.app.PanixRuntimeService` registered and not exported. |
-| Android runtime first-boot state machine | Compile-pass only | `PanixRuntimeManager` implements `NOT_INSTALLED`, `VERIFYING_ASSET`, `INSTALLING_PROOT`, `EXTRACTING`, `CONFIGURING`, `READY`, `STARTING_X11`, `STARTING_DESKTOP`, `RUNNING`, `STOPPING`, and `FAILED`; on-device extraction has not been run. |
-| Rootfs checksum packaged as asset | CI path implemented | `scripts/build-panix.sh` and `.github/workflows/build.yml` copy `debian-trixie-arm64-rootfs.tar.zst.sha256` into APK assets beside the rootfs. |
-| PRoot payload builder | Pass | `./scripts/build-proot-payload.sh` downloaded pinned Termux `proot` 5.1.107.87, `libandroid-shmem` 0.7, and `libtalloc` 2.4.3 packages, verified SHA-256s, and produced deterministic payload SHA-256 `e4c01ed77229c3215420e96b75052e9fa7eb4f530ce2e3a6fdbafc328582cf62` (114,325 bytes). |
-| PRoot checksum packaged as asset | CI path implemented | `scripts/build-panix.sh` and `.github/workflows/build.yml` copy `termux-proot-aarch64.tar.zst.sha256` into APK assets beside the PRoot payload. |
-| PRoot payload relocation smoke test | Pass | Extracting the payload under `build/proot-smoke.*/usr` and running `proot --version` with `LD_LIBRARY_PATH`, `PROOT_LOADER`, and `PROOT_TMP_DIR` overrides reported `5.1.107.87`. |
-| Runtime PRoot launch path | Compile-pass only | `:app:compileDebugJavaWithJavac` passed with the Termux-native `aapt2` override after adding bundled PRoot extraction, X11 startup state, and XFCE supervisor launch path. |
-| Default no-X11 local compile | Pass | `ANDROID_HOME=/data/data/com.termux/files/home/android-tooling/android-sdk ./gradlew --no-daemon -Pandroid.aapt2FromMavenOverride=/data/data/com.termux/files/usr/bin/aapt2 :app:compileDebugJavaWithJavac` completed on the phone. |
-| X11-enabled manifest merge | Pass locally | `PANIX_INCLUDE_X11_MODULE=1 :app:processReleaseMainManifest` completed on the phone; the merged release manifest enables `com.termux.x11.PanixHomeActivity`, disables `com.termux.app.PanixHomeActivity`, and keeps `com.termux.x11.MainActivity` without a launcher intent filter. |
-| X11-enabled local phone compile | Blocked by host tools | `PANIX_INCLUDE_X11_MODULE=1 :app:compileReleaseJavaWithJavac` reaches `:lorie:compileReleaseAidl` but cannot run the official Linux x86_64 SDK `aidl` binary under Termux on Android. |
-| X11 native source submodules | CI path implemented | Root `.gitmodules` maps Termux:X11 native gitlinks to their upstream URLs, `.github/workflows/build.yml` checks them out recursively, and `scripts/build-panix.sh` preflights representative native source files when `PANIX_INCLUDE_X11_MODULE=1`. |
-| Direct device install | Blocked | `pm install` cannot read APKs from Termux private storage or shared FUSE paths; adb has no attached device. |
-| Debug APK with PRoot assets | Pass | `:app:assembleDebug` produced `Panix-debug-arm64-v8a.apk` with SHA-256 `956ffbe3116449693d88f3fa8d0dccb898cded65d1504a4a3b653e608b3dd258`; `zipinfo` shows `assets/termux-proot-aarch64.tar.zst` and `.sha256`. |
-| Top-level build script | Blocked locally as intended | `PANIX_SIGN_RELEASE=0 ./scripts/build-panix.sh` builds/copies the PRoot payload and then stops with `missing bundled Debian rootfs asset` until `debian-trixie-arm64-rootfs.tar.zst` is built and copied into `build/rootfs/` or `app/src/main/assets/`. |
-| GitHub Actions workflow | Pass for X11-enabled unsigned CI artifact | The `Build Panix` workflow run `30151312172` builds the Debian rootfs, builds the pinned Termux PRoot payload, checks out Termux:X11 native submodules, assembles `Panix-arm64-v8a.apk` with the X11-backed Panix HOME activity, verifies its checksum, inspects the APK structure, and uploads both `Panix-apk-inspection` and `Panix-arm64-v8a-ci` artifacts on `master`. |
-| GitHub Actions unit tests | Pass | The `Unit tests` workflow run `30151312192` installs SDK platform `android-36` and runs `./gradlew test` on `master`. |
-| GitHub Actions wrapper validation | Pass | The `Validate Gradle Wrapper` workflow run `30151312160` runs on `master`. |
-| GitHub alpha prerelease | Pass | `panix-v0.1.0-alpha.1` is published at `https://github.com/Decentricity/Panix/releases/tag/panix-v0.1.0-alpha.1` with the signed APK, checksum, signing verification report, and rootfs/PRoot provenance assets. |
-| Signed alpha APK in shared storage | Pass | `/storage/emulated/0/Download/Panix/Panix-arm64-v8a.apk` matches the recorded SHA-256. |
-| Local phone unit tests | Fails in Robolectric harness | `./gradlew test` fails in existing `FileReceiverActivityTest` cleanup with `ShadowActivityThread.reset: ActivityThread not set`; this is not a Panix runtime assertion failure. |
+| Build/sign current `0.1.0-alpha.2` line | Pass for local test-signed APK | Current APK above, signed and verified with v2/v3 signatures. |
+| Install on attached ARM64 Android target | Pass | Installed on CPH2499 with `adb install --no-incremental`. |
+| Panix opens from app icon | Not yet directly captured | Home launch is proven; launcher icon tap/monkey evidence still needed. |
+| Android offers/selects Panix as Home app | Pass | `set-home-activity` succeeded and activity resumed from `android.intent.category.HOME`. |
+| First boot requires no rootfs download | Pass | Runtime extracted `assets/debian-trixie-arm64-rootfs.tar.zst` from the APK. |
+| Bundled rootfs verified/extracted | Pass | `VERIFYING_ASSET`, `EXTRACTING`, `CONFIGURING`, `READY`, then `RUNNING`. |
+| Embedded X11 surface appears | Pass | Screenshot and `panix-x11` process/log evidence. |
+| XFCE usable desktop appears | Pass for desktop appearance | Screenshot shows XFCE panel, desktop icons, Panix overlay, and extra-key bar. |
+| Touch input works | Not yet captured | Needs deliberate tap evidence. |
+| Soft keyboard / extra-key controls | Partial | Extra-key bar is visible by default; soft keyboard open action still needs direct evidence. |
+| Physical keyboard | Not applicable yet | No physical keyboard evidence captured. |
+| XFCE Terminal opens | Not yet captured | Required before final release. |
+| `/etc/os-release` identifies Debian 13 Trixie | Not yet captured | Required before final release. |
+| `apt update` works | Not yet captured | Required before final release. |
+| Installing a small Debian package works | Not yet captured | Required before final release. |
+| Repeated Home returns to same session without duplicate processes | Not yet captured | Required before final release. |
+| Android app round trip returns to Panix | Not yet captured | Required before final release. |
+| Killing/relaunching Panix recovers cleanly | Not yet captured | Required before final release. |
+| Restart Desktop works | Not yet captured | Required before final release. |
+| Reset Debian works | Partial | `pm clear` plus fresh first boot works; in-app Reset Debian still needs direct evidence. |
+| No VNC server/viewer/TCP VNC dependency | Pass for APK/code/process evidence | APK has no VNC/RDP files and runtime process tree contains no VNC process. |
+| No separate Termux:X11 APK required | Pass | No `com.termux.x11` package installed; `panix-x11` starts from Panix APK `CLASSPATH`. |
+| Logs reveal actionable errors | Pass | Earlier device failures exposed tar, symlink, sudoers, X11 library, and XKB causes in logs. |
+| Required screenshots/logs captured | Partial | XFCE/Home screenshots and logs captured; terminal/os-release and Android Settings/app-drawer screenshots still needed. |
 
-## Required Acceptance Tests
+## Release Decision
 
-The full v0.1.0 acceptance list from the product objective remains open.
+Do not tag or publish final `v0.1.0` yet. The main boot gate is now green, but
+the terminal, Debian identity, APT, input, recovery, and session-resume checks
+still need direct device evidence.

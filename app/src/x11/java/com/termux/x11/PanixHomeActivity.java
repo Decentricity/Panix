@@ -45,6 +45,7 @@ public final class PanixHomeActivity extends MainActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        applyPanixDisplayDefaults();
         startupStatus = findViewById(R.id.textView);
         rebrandStartupScreen();
         addPanixMenuButton();
@@ -92,6 +93,23 @@ public final class PanixHomeActivity extends MainActivity {
         }
 
         updateStartupStatus();
+    }
+
+    private void applyPanixDisplayDefaults() {
+        if (prefs == null || prefs.get().getBoolean("panixDisplayDefaultsApplied", false)) {
+            return;
+        }
+
+        prefs.displayResolutionMode.put("scaled");
+        prefs.get().edit()
+            .putInt("displayScale", 200)
+            .putBoolean("displayStretch", false)
+            .putBoolean("fullscreen", true)
+            .putBoolean("showAdditionalKbd", true)
+            .putBoolean("additionalKbdVisible", true)
+            .putBoolean("panixDisplayDefaultsApplied", true)
+            .commit();
+        onPreferencesChanged("panixDisplayDefaultsApplied");
     }
 
     private void addPanixMenuButton() {

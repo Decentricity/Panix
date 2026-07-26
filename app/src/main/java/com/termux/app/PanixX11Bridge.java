@@ -70,8 +70,18 @@ final class PanixX11Bridge {
         builder.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
         builder.environment().put("CLASSPATH", context.getPackageCodePath());
         builder.environment().put("TMPDIR", tmpDir.getAbsolutePath());
+        builder.environment().put("TERMUX_X11_DEBUG", "1");
+        File xkbConfigRoot = new File(tmpDir.getParentFile(), "usr/share/X11/xkb");
+        if (xkbConfigRoot.isDirectory()) {
+            builder.environment().put("XKB_CONFIG_ROOT", xkbConfigRoot.getAbsolutePath());
+        }
+        builder.environment().remove("LD_LIBRARY_PATH");
+        builder.environment().remove("LD_PRELOAD");
 
-        appendLog(logFile, "Starting embedded Termux:X11 server on display " + DISPLAY);
+        appendLog(context, logFile, "Starting embedded Termux:X11 server on display " + DISPLAY);
+        appendLog(context, logFile, "Command: " + command);
+        appendLog(context, logFile, "TMPDIR=" + tmpDir.getAbsolutePath());
+        appendLog(context, logFile, "XKB_CONFIG_ROOT=" + builder.environment().get("XKB_CONFIG_ROOT"));
         Process process = builder.start();
         synchronized (LOCK) {
             sX11Process = process;
@@ -85,9 +95,9 @@ final class PanixX11Bridge {
                     sX11Process = null;
                 }
             }
-            throw new IOException("Embedded X11 server exited during startup with code " + exitCode + ".");
+            throw new IOException("Embedded X11 server exited during startup with code " + exitCode + ".\n" + tailText(readFile(logFile), 2400));
         } catch (IllegalThreadStateException stillRunning) {
-            appendLog(logFile, "Embedded Termux:X11 server is running.");
+            appendLog(context, logFile, "Embedded Termux:X11 server is running.");
         }
     }
 
@@ -129,6 +139,30 @@ final class PanixX11Bridge {
             }
         } catch (IOException ignored) {
         }
+    }
+
+    private static void appendLog(Context context, File file, String text) {
+        appendLog(file, text);
+        PanixRuntimeManager.appendPublicLog(context, file.getName(), text + "\n");
+    }
+
+    private static String readFile(File file) {
+        if (file == null || !file.exists()) {
+            return "";
+        }
+        try {
+            byte[] data = java.nio.file.Files.readAllBytes(file.toPath());
+            return new String(data, StandardCharsets.UTF_8);
+        } catch (IOException ignored) {
+            return "";
+        }
+    }
+
+    private static String tailText(String text, int maxChars) {
+        if (text == null || text.length() <= maxChars) {
+            return text == null ? "" : text;
+        }
+        return text.substring(text.length() - maxChars);
     }
 
     private static void mkdirs(File dir) throws IOException {

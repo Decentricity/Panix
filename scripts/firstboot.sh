@@ -26,7 +26,7 @@ state VERIFYING_ASSET
 state EXTRACTING
 rm -rf "$PANIX_STAGING_DIR"
 mkdir -p "$PANIX_STAGING_DIR"
-zstd -dc "$PANIX_ROOTFS_ASSET" | tar -C "$PANIX_STAGING_DIR" -xf -
+zstd -dc "$PANIX_ROOTFS_ASSET" | tar --no-same-owner --no-same-permissions --delay-directory-restore -C "$PANIX_STAGING_DIR" -xf -
 
 state CONFIGURING
 mkdir -p "$PANIX_STAGING_DIR/tmp" "$PANIX_STAGING_DIR/home/panix"

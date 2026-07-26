@@ -2,11 +2,12 @@
 
 Turn an Android phone into a Debian graphical workstation and home launcher.
 
-[Download Panix alpha for ARM64 Android](https://github.com/Decentricity/Panix/releases/download/panix-v0.1.0-alpha.1/Panix-arm64-v8a.apk)
+[Download Panix alpha for ARM64 Android](https://github.com/Decentricity/Panix/releases/download/panix-v0.1.0-alpha.2/Panix-arm64-v8a.apk)
 
-Current status: source integration is in progress. An alpha APK has been built
-and signed, but no acceptance-tested final v0.1.0 release has passed on-device
-first-boot testing yet.
+Current status: the local `0.1.0-alpha.2` development line now boots the
+bundled Debian 13/XFCE desktop as the Android Home screen on an attached ARM64
+phone. Final `v0.1.0` has not been tagged or published yet because terminal,
+APT, input, recovery, and session-resume acceptance evidence is still pending.
 
 For the remaining execution checklist and workstation handoff, see
 [`AGENTS.md`](AGENTS.md).
@@ -26,15 +27,15 @@ Panix is not affiliated with, endorsed by, or released by the Termux project.
 - Sideloading enabled by the user.
 - Enough free storage for the APK, compressed rootfs, and extracted Debian tree.
 
-Current alpha artifact details:
+Published alpha.2 artifact details:
 
-- Signed APK size: 254,069,497 bytes.
-- Bundled Debian rootfs size: 219,263,824 bytes compressed.
-- Bundled PRoot payload size: 113,366 bytes compressed.
+- Test-signed APK size: 259,738,361 bytes.
+- Bundled Debian rootfs size: 221,480,599 bytes compressed.
+- Bundled PRoot payload size: 114,325 bytes compressed.
 - APK SHA-256:
-  `527bc8c5afd90c8d83786943b726178b4fae5a2d242264d5f222192ec3188fa8`.
-- Signing certificate SHA-256:
-  `5F:33:3B:9B:D8:8C:24:17:4C:FA:CE:14:73:BA:36:17:77:A3:E6:6F:06:F6:73:1E:D8:8F:E0:17:70:C7:2A:42`.
+  `dd77f38a73f513d33a14b707282da4763444ad35969804cd822c7196a8df8020`.
+- Test signing certificate SHA-256:
+  `DDEA70A805747E040FE393A8C8024B04FB9A0ED2BE532C5B37BCDCBBCB0C9872`.
 
 ## Install
 
@@ -44,15 +45,12 @@ Current alpha artifact details:
 4. During the finished first-boot flow, Panix will verify and extract the
    bundled Debian rootfs, start embedded X11, then start XFCE.
 
-The current development build opens a native Panix Home shell with a foreground
-runtime service. It can start the transactional first-boot path, install the
-bundled PRoot runtime, verify/extract the bundled rootfs, and attempt the XFCE
-supervisor. X11-enabled CI builds package Termux:X11 into the same APK and start
-its command entry point before XFCE. Current source routes launcher/Home intents
-to a Panix-named X11 home activity that subclasses the vendored Termux:X11
-surface and overlays the Panix emergency menu. CI builds now package that X11
-Home surface, but it still needs on-device first-boot testing before it can be
-treated as acceptance-ready.
+The current local test build has completed first boot on an ARM64 Android phone:
+it installs bundled PRoot, verifies and extracts the bundled Debian rootfs,
+starts embedded X11 from the Panix APK, and starts XFCE as the Home screen.
+Panix does not require the phone's installed Termux app, a separate Termux:X11
+APK, a VNC app, or a companion APK for this path. See `docs/TEST-REPORT.md` for
+the exact APK, screenshot, logs, package list, and remaining release blockers.
 
 ## Recovery
 

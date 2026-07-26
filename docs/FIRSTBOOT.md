@@ -1,6 +1,8 @@
 # First Boot
 
-Panix first boot must be transactional.
+Panix first boot is transactional: install private runtime tools, verify bundled
+assets, extract Debian into a staging directory, configure it, then start
+embedded X11 and XFCE.
 
 Target states:
 
@@ -16,12 +18,11 @@ Target states:
 - `STOPPING`
 - `FAILED`
 
-`PanixRuntimeManager` now persists these states under
-`$PANIX_FILES_DIR/panix-state/`, and `PanixRuntimeService` runs the state
-machine from a foreground service. The Home activity starts the service,
-polls status, and exposes runtime controls.
+`PanixRuntimeManager` persists these states under `$PANIX_FILES_DIR/panix-state/`,
+and `PanixRuntimeService` runs the state machine from a foreground service. The
+Home activity starts the service, polls status, and exposes recovery controls.
 
-Current implemented first-boot behavior:
+Implemented and device-proven behavior on 2026-07-26:
 
 - Installs the embedded Termux bootstrap into Panix's private `files/usr` path
   when needed so bundled `bash`, `tar`, and `zstd` are available.
@@ -30,27 +31,36 @@ Current implemented first-boot behavior:
 - Copies `debian-trixie-arm64-rootfs.tar.zst` and its `.sha256` file from APK
   assets into Panix private storage.
 - Verifies the rootfs SHA-256 before extraction.
-- Checks free private storage before extraction.
+- Extracts the rootfs with Android-safe tar flags:
+  `--no-same-owner --no-same-permissions --delay-directory-restore`.
+- Builds the rootfs archive without populated `/dev` entries and with hardlinks
+  dereferenced so Android app storage can extract it.
 - Extracts into `debian.staging`.
-- Ensures `/home/panix`, `tmp`, `passwd`, `group`, sudoers, resolver config,
+- Ensures `/home/panix`, `/tmp`, `passwd`, `group`, sudoers, resolver config,
   and a Panix rootfs version marker exist.
 - Moves the staging rootfs into `debian` only after health checks pass.
 - Leaves an existing healthy rootfs in place if a new extraction fails.
+- Starts embedded X11 on display `:1` through Android `app_process`.
+- Points embedded X11 `TMPDIR` at the Debian rootfs `/tmp` and
+  `XKB_CONFIG_ROOT` at the bundled Debian XKB directory.
 - Starts the XFCE supervisor through bundled PRoot with `PROOT_LOADER`,
   `PROOT_TMP_DIR`, and `LD_LIBRARY_PATH` pointed at the Panix private prefix.
-- In X11-enabled builds, starts the embedded Termux:X11 server on display `:1`
-  through Android `app_process` before launching XFCE.
+- Defaults the phone display to scaled mode, `displayScale=200`, fullscreen, and
+  visible extra-key bar.
 
-Current missing first-boot behavior:
-
-- Current X11-enabled source hosts the surface through
-  `com.termux.x11.PanixHomeActivity`, a Panix HOME activity that subclasses the
-  vendored Termux:X11 surface activity and adds the Panix emergency menu.
-- Desktop launch cannot pass acceptance until the X11-backed Panix HOME path is
-  tested on-device with the bundled rootfs.
+The current local test build reached `RUNNING` on the attached CPH2499 phone.
+Evidence is recorded in `docs/TEST-REPORT.md` and
+`docs/images/panix-extra-key-firstboot-xfce.png`.
 
 Required invariant:
 
 An existing healthy rootfs must never be destroyed because a new extraction
 failed. Extraction must happen into a staging directory and move into place only
 after verification and health checks pass.
+
+Remaining first-boot/recovery evidence needed before final `v0.1.0`:
+
+- In-app Restart Desktop.
+- In-app Reset Debian.
+- Kill/relaunch recovery.
+- Repeated Home behavior without duplicate desktop processes.

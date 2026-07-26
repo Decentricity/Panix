@@ -27,6 +27,13 @@ Current repository state:
 - `PanixX11Bridge` starts `com.termux.x11.CmdEntryPoint` through Android
   `app_process` with `CLASSPATH` pointed at the Panix APK and `TMPDIR` pointed at
   Panix's private shared tmp directory.
+- `PanixX11Bridge` sets `XKB_CONFIG_ROOT` to the bundled Debian rootfs XKB
+  directory so the embedded X11 server does not depend on Termux paths.
+- Release packaging stores `lib/arm64-v8a/libXlorie.so` uncompressed because
+  the embedded X11 command entry point loads that library directly from the APK
+  path.
+- `com.termux.x11.PanixHomeActivity` applies phone-friendly X11 defaults:
+  scaled resolution, `displayScale=200`, fullscreen, and visible extra-key bar.
 
 Target runtime path:
 
@@ -38,13 +45,18 @@ Debian GUI application
   -> Android native Surface in PanixHomeActivity
 ```
 
+Device evidence:
+
+- On 2026-07-26, the local `0.1.0-alpha.2` test build booted the bundled
+  Debian/XFCE desktop as Android Home on a CPH2499 ARM64 phone. The runtime
+  reached `RUNNING` with `io.github.decentricity.panix`, `panix-x11`, bundled
+  `proot`, and `xfce4-session` processes. See `docs/TEST-REPORT.md`.
+
 Major remaining implementation boundaries:
 
-- Prove the X11-backed Panix HOME activity in on-device first-boot acceptance
-  testing.
+- Complete the remaining device acceptance evidence for terminal, Debian
+  identity, APT, input, recovery, and repeated Home/session behavior.
 - Replace `com.termux.x11` package assumptions in loader, broadcasts, and native
   code where they conflict with Panix package identity.
 - Replace `/data/data/com.termux` native path assumptions with Panix paths where
   runtime environment overrides are not enough.
-- Bundle and verify `debian-trixie-arm64-rootfs.tar.zst` as a release APK asset.
-- Run XFCE as user `panix` through PRoot with shared `/tmp` for the X11 socket.

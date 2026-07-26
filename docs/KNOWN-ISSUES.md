@@ -1,33 +1,31 @@
 # Known Issues
 
-- No v0.1.0 release APK has passed the acceptance test suite yet.
-- X11-enabled source now routes launcher/Home intents to a Panix X11 HOME
-  activity that subclasses the vendored Termux:X11 surface and overlays Panix
-  recovery controls. CI packaging passes, but on-device acceptance is still
-  untested.
-- `PanixRuntimeService` and `PanixRuntimeManager` provide first-boot state,
-  rootfs verification/extraction, reset, logs, and foreground-service plumbing,
-  and a bundled PRoot/XFCE supervisor path. X11-enabled builds now start the
-  embedded Termux:X11 command entry point before XFCE, but desktop launch still
-  cannot pass acceptance until the X11-backed Panix HOME activity is tested on a
-  device.
+- No final `v0.1.0` release APK has passed the complete acceptance suite yet.
+- The main on-device boot gate now passes for the local `0.1.0-alpha.2` test
+  build: Panix installs on the attached ARM64 phone, can be selected as Home,
+  verifies/extracts the bundled Debian rootfs, starts embedded X11, and reaches
+  XFCE with runtime state `RUNNING`.
+- Remaining release blockers are evidence gaps, not the earlier black-screen
+  boot failure: XFCE Terminal, `/etc/os-release`, `apt update`, small package
+  install, direct touch/keyboard checks, repeated Home behavior, Android app
+  round trip, in-app Restart Desktop, in-app Reset Debian, and recovery after
+  killing/relaunching Panix still need device proof.
+- Termux must not be removed from the test phone. Panix independence should be
+  proven from APK contents, code paths, packages, and processes. Current
+  evidence shows Panix uses its own package, bundled PRoot/rootfs, and embedded
+  X11; it does not require the installed Termux app, a separate Termux:X11 APK,
+  or VNC.
 - `third_party/termux-x11` is vendored as an optional module and still contains
-  separate-package assumptions for `com.termux.x11`.
-- The standalone Termux:X11 launcher entry is suppressed in source and the
-  X11-enabled CI build passes, but APK badging still needs to be rechecked on a
-  downloaded current artifact.
-- Termux:X11 native startup still contains hard-coded `/data/data/com.termux`
-  paths that must be replaced or parameterized.
-- The Debian 13 Trixie ARM64 rootfs is built and bundled by CI, and a signed
-  alpha APK exists, but the rootfs has not passed on-device first-boot
-  extraction testing.
-- PRoot is bundled from pinned Termux package payloads, but it has not passed an
-  on-device Panix first-boot launch test yet.
-- `scripts/start-desktop.sh` mirrors the Java launch path for debugging; the
-  Android runtime manager starts PRoot directly.
-- The phone build path cannot execute official Android NDK Linux x86_64 host
-  binaries. The base app works around this for current JNI libraries by building
-  ARM64 `.so` files with Termux `clang`, but embedded Termux:X11 AIDL/CMake/NDK
-  builds still need a CI or cross-build path.
-- On-phone Gradle builds emit non-fatal `llvm-strip` warnings because the NDK
-  strip binary is Linux x86_64. Packaged libraries are currently unstripped.
+  upstream `com.termux.x11` namespace assumptions. The current Panix build works
+  by embedding those classes inside the Panix APK and starting
+  `CmdEntryPoint` with `CLASSPATH` pointed at Panix's own `base.apk`.
+- Some native Termux:X11 code still has upstream path assumptions. Current
+  runtime overrides provide the working `TMPDIR` and `XKB_CONFIG_ROOT`, but this
+  area should remain part of release regression testing.
+- On-phone Gradle builds cannot execute official Android SDK/NDK Linux x86_64
+  host binaries. Use a Linux host or CI for X11-enabled release builds.
+- Host lint currently reports existing PendingIntent mutability warnings in
+  `TermuxService`. They are not blocking the current target SDK, but they should
+  be addressed before raising target SDK.
+- Gradle with JDK 21 emits Java 8 source/target deprecation warnings. The build
+  still completes with the current toolchain.

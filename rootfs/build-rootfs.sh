@@ -81,8 +81,9 @@ else
 fi
 
 "$SCRIPT_DIR/configure-rootfs.sh" "$ROOTFS_TREE"
+mkdir -p "$ROOTFS_TREE/dev" "$ROOTFS_TREE/proc" "$ROOTFS_TREE/sys"
 
-tar --numeric-owner -C "$ROOTFS_TREE" -cf "$ROOTFS_TAR" .
+tar --numeric-owner --hard-dereference --exclude='./dev/*' -C "$ROOTFS_TREE" -cf "$ROOTFS_TAR" .
 zstd -19 -T0 -f "$ROOTFS_TAR" -o "$ROOTFS_TMP"
 
 archive_size=$(wc -c < "$ROOTFS_TMP" | tr -d ' ')
@@ -103,6 +104,9 @@ primary_source=$PRIMARY_SOURCE
 updates_source=$UPDATES_SOURCE
 security_source=$SECURITY_SOURCE
 packages=$PACKAGES
+android_extractable=true
+archive_excludes=./dev/*
+archive_hardlinks=dereferenced
 sha256=$(cut -d ' ' -f 1 "$MANIFEST_DIR/$ROOTFS_NAME.sha256")
 size_bytes=$archive_size
 EOF

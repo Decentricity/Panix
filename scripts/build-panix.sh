@@ -121,7 +121,11 @@ if [ -n "$AAPT2_OVERRIDE" ]; then
 fi
 
 # shellcheck disable=SC2086
-"$GRADLE_BIN" $GRADLE_ARGS 2>&1 | tee "$BUILD_LOG_DIR/assembleRelease.log"
+if ! "$GRADLE_BIN" $GRADLE_ARGS > "$BUILD_LOG_DIR/assembleRelease.log" 2>&1; then
+    cat "$BUILD_LOG_DIR/assembleRelease.log"
+    fail "Gradle release assemble failed"
+fi
+cat "$BUILD_LOG_DIR/assembleRelease.log"
 
 APK="$REPO_ROOT/app/build/outputs/apk/release/Panix-arm64-v8a.apk"
 require_file "$APK" "release APK"

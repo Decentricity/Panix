@@ -2,6 +2,7 @@ package com.termux.app;
 
 import android.content.Context;
 import android.content.res.AssetManager;
+import android.os.Environment;
 import android.os.StatFs;
 import android.system.Os;
 
@@ -17,6 +18,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
@@ -213,6 +216,7 @@ public final class PanixRuntimeManager {
             quote(new File(TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH, "zstd").getAbsolutePath()) +
                 " -dc " + quote(asset.getAbsolutePath()) + " | " +
                 quote(new File(TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH, "tar").getAbsolutePath()) +
+                " --no-same-owner --no-same-permissions --delay-directory-restore" +
                 " -C " + quote(staging.getAbsolutePath()) + " -xf -",
             new File(logDir(context), "firstboot.log"));
 
@@ -253,8 +257,10 @@ public final class PanixRuntimeManager {
         }
 
         File desktopLog = new File(logDir(context), "desktop.log");
+        File x11TmpDir = x11TmpDir(context);
+        mkdirs(x11TmpDir);
         setState(context, STATE_STARTING_X11, "Starting embedded Termux:X11 server.");
-        PanixX11Bridge.startServer(context, tmpDir(context), desktopLog);
+        PanixX11Bridge.startServer(context, x11TmpDir, desktopLog);
 
         setState(context, STATE_STARTING_DESKTOP, "Starting Debian XFCE through bundled PRoot.");
         mkdirs(tmpDir(context));
@@ -276,7 +282,7 @@ public final class PanixRuntimeManager {
         command.add("--bind=/dev");
         command.add("--bind=/proc");
         command.add("--bind=/sys");
-        command.add("--bind=" + tmpDir(context).getAbsolutePath() + ":/tmp");
+        command.add("--bind=" + x11TmpDir.getAbsolutePath() + ":/tmp");
         command.add("--bind=" + exportDir(context).getAbsolutePath() + ":/home/panix/Downloads");
         command.add("--cwd=/home/panix");
         command.add("/usr/bin/env");
@@ -302,7 +308,7 @@ public final class PanixRuntimeManager {
         builder.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + ":/system/bin");
         builder.environment().put("LD_LIBRARY_PATH", TermuxConstants.TERMUX_LIB_PREFIX_DIR_PATH);
         builder.environment().put("PREFIX", TermuxConstants.TERMUX_PREFIX_DIR_PATH);
-        builder.environment().put("TMPDIR", tmpDir(context).getAbsolutePath());
+        builder.environment().put("TMPDIR", x11TmpDir.getAbsolutePath());
         builder.environment().put("PROOT_LOADER", prootLoader(context).getAbsolutePath());
         builder.environment().put("PROOT_TMP_DIR", tmpDir(context).getAbsolutePath());
 
@@ -345,6 +351,7 @@ public final class PanixRuntimeManager {
             quote(new File(TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH, "zstd").getAbsolutePath()) +
                 " -dc " + quote(asset.getAbsolutePath()) + " | " +
                 quote(new File(TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH, "tar").getAbsolutePath()) +
+                " --no-same-owner --no-same-permissions --delay-directory-restore" +
                 " -C " + quote(filesDir(context).getAbsolutePath()) + " -xf -",
             new File(logDir(context), "firstboot.log"));
 
@@ -418,7 +425,7 @@ public final class PanixRuntimeManager {
     private static void runShell(Context context, String command, File logFile) throws Exception {
         mkdirs(logFile.getParentFile());
         String shell = new File(TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH, "bash").getAbsolutePath();
-        ProcessBuilder builder = new ProcessBuilder(shell, "-lc", "set -e\n" + command);
+        ProcessBuilder builder = new ProcessBuilder(shell, "-c", "set -e\n" + command);
         builder.directory(filesDir(context));
         builder.redirectErrorStream(true);
         builder.environment().put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH);
@@ -436,8 +443,9 @@ public final class PanixRuntimeManager {
         int exitCode = process.waitFor();
         String text = output.toString("UTF-8");
         appendLog(logFile, "$ " + command + "\n" + text + "\nexit=" + exitCode + "\n");
+        appendPublicLog(context, logFile.getName(), "$ " + command + "\n" + text + "\nexit=" + exitCode + "\n");
         if (exitCode != 0) {
-            throw new IOException("Command failed with exit code " + exitCode + ": " + command);
+            throw new IOException("Command failed with exit code " + exitCode + ": " + command + "\n" + tailText(text, 2400));
         }
     }
 
@@ -471,6 +479,8 @@ public final class PanixRuntimeManager {
             writeFile(stateFile(context), state + "\n");
             writeFile(detailFile(context), detail + "\n");
             appendLog(context, "runtime", state + ": " + detail);
+            writePublicFile(context, "runtime.state", state + "\n");
+            writePublicFile(context, "runtime.detail", detail + "\n");
         } catch (Exception ignored) {
         }
     }
@@ -509,6 +519,13 @@ public final class PanixRuntimeManager {
 
     private static void writeFile(File file, String content) throws IOException {
         mkdirs(file.getParentFile());
+        if (file.exists() && !file.canWrite()) {
+            try {
+                Os.chmod(file.getAbsolutePath(), 0600);
+            } catch (Exception e) {
+                throw new IOException("Failed to make file writable: " + file.getAbsolutePath(), e);
+            }
+        }
         try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
             writer.write(content);
         }
@@ -531,6 +548,7 @@ public final class PanixRuntimeManager {
 
     private static void appendLog(Context context, String basename, String text) {
         appendLog(new File(logDir(context), basename + ".log"), text + "\n");
+        appendPublicLog(context, basename + ".log", text + "\n");
     }
 
     private static void appendLog(File file, String text) {
@@ -554,6 +572,25 @@ public final class PanixRuntimeManager {
         builder.append("== ").append(file.getName()).append(" ==\n").append(content).append('\n');
     }
 
+    static void appendPublicLog(Context context, String name, String text) {
+        try {
+            File file = new File(publicLogDir(context), name);
+            mkdirs(file.getParentFile());
+            try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file, true), StandardCharsets.UTF_8)) {
+                writer.write(text);
+            }
+        } catch (IOException ignored) {
+        }
+    }
+
+    private static void writePublicFile(Context context, String name, String content) {
+        try {
+            File file = new File(publicLogDir(context), name);
+            writeFile(file, content);
+        } catch (IOException ignored) {
+        }
+    }
+
     private static void mkdirs(File dir) throws IOException {
         if (dir == null) {
             return;
@@ -567,7 +604,8 @@ public final class PanixRuntimeManager {
         if (file == null || !file.exists()) {
             return;
         }
-        if (file.isDirectory()) {
+        Path path = file.toPath();
+        if (Files.isDirectory(path, java.nio.file.LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(path)) {
             File[] children = file.listFiles();
             if (children != null) {
                 for (File child : children) {
@@ -594,6 +632,16 @@ public final class PanixRuntimeManager {
     private static String formatBytes(long bytes) {
         long mib = bytes / (1024L * 1024L);
         return mib + " MiB";
+    }
+
+    private static String tailText(String text, int maxChars) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+        if (text.length() <= maxChars) {
+            return text;
+        }
+        return text.substring(text.length() - maxChars);
     }
 
     private static String stackTrace(Exception e) {
@@ -624,12 +672,24 @@ public final class PanixRuntimeManager {
         return new File(filesDir(context), "logs");
     }
 
+    private static File publicLogDir(Context context) {
+        File external = context.getExternalFilesDir(null);
+        if (external != null) {
+            return new File(external, "logs");
+        }
+        return new File(new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Panix"), "logs");
+    }
+
     private static File runDir(Context context) {
         return new File(filesDir(context), "run");
     }
 
     private static File tmpDir(Context context) {
         return new File(filesDir(context), "tmp");
+    }
+
+    private static File x11TmpDir(Context context) {
+        return new File(rootfsDir(context), "tmp");
     }
 
     private static File exportDir(Context context) {

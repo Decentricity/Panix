@@ -69,6 +69,7 @@ mkdir -p "$OUT_DIR"
 "$AAPT" dump badging "$APK" > "$OUT_DIR/aapt-badging.txt"
 "$AAPT" dump xmltree "$APK" AndroidManifest.xml > "$OUT_DIR/androidmanifest-xmltree.txt"
 unzip -l "$APK" > "$OUT_DIR/apk-contents.txt"
+unzip -lv "$APK" > "$OUT_DIR/apk-contents-verbose.txt"
 sha256sum "$APK" > "$OUT_DIR/Panix-arm64-v8a.apk.sha256"
 
 APP_HOME_ACTIVITY="$OUT_DIR/activity-com.termux.app.PanixHomeActivity.txt"
@@ -118,6 +119,8 @@ contains "$OUT_DIR/apk-contents.txt" "assets/termux-proot-aarch64.tar.zst.sha256
     fail "APK does not contain bundled PRoot payload checksum"
 contains "$OUT_DIR/apk-contents.txt" "lib/arm64-v8a/libXlorie.so" ||
     fail "APK does not contain embedded Termux:X11 native library"
+awk '$NF == "lib/arm64-v8a/libXlorie.so" && $2 == "Stored" { found=1 } END { exit found ? 0 : 1 }' "$OUT_DIR/apk-contents-verbose.txt" ||
+    fail "embedded Termux:X11 native library must be stored uncompressed for app_process dlopen"
 contains "$OUT_DIR/apk-contents.txt" "lib/arm64-v8a/libtermux.so" ||
     fail "APK does not contain Termux terminal native library"
 contains "$OUT_DIR/apk-contents.txt" "lib/arm64-v8a/libtermux-bootstrap.so" ||
