@@ -1,11 +1,13 @@
 # Test Report
 
-Date: 2026-07-26
+Date: 2026-07-28
 
-Current status: the local `0.1.0-alpha.2` line now boots the bundled Debian
-13/XFCE desktop as the Android Home screen on the attached ARM64 phone. This is
-real device evidence, not just APK inspection. The final `v0.1.0` tag/release is
-still not published because the full acceptance suite has not been completed.
+Current status: `0.1.0-alpha.3` boots the bundled Debian 13/XFCE desktop as
+the Android Home screen on the attached ARM64 phone, opens an XFCE terminal
+inside Debian, runs `apt update`, and installs/runs the Debian `hello` package.
+This is real device evidence, not just APK inspection. The final `v0.1.0`
+tag/release is still not published because the full reset/clean acceptance pass
+has not been completed.
 
 ## Current Device Evidence
 
@@ -16,10 +18,11 @@ Device:
 Current test build:
 
 - APK:
-  `build/device-test/rebuild-x11-extra-key/Panix-arm64-v8a-alpha.2-extra-key-test-signed.apk`
-- Version: `0.1.0-alpha.2`
+  `build/device-test/acceptance-2026-07-28/alpha3-final/Panix-arm64-v8a-alpha.3-test-signed.apk`
+- Version: `0.1.0-alpha.3`
+- Version code: `3`
 - SHA-256:
-  `dd77f38a73f513d33a14b707282da4763444ad35969804cd822c7196a8df8020`
+  `b1e00213259c4861026b0969edd91c1d6807bd06895804ee2bdf64c2fab3559c`
 - Test signing certificate SHA-256:
   `ddea70a805747e040fe393a8c8024b04fb9a0ed2be532c5b37bcdcbbcb0c9872`
 - `apksigner verify --verbose --print-certs`: v2 and v3 signatures verified.
@@ -45,9 +48,9 @@ Fresh first boot on device:
   `cmd package set-home-activity io.github.decentricity.panix/com.termux.x11.PanixHomeActivity`
 - Runtime state: `RUNNING`
 - Screenshot:
-  `docs/images/panix-extra-key-firstboot-xfce.png`
+  `docs/images/panix-scaled-firstboot-xfce.png`
 - Evidence folder:
-  `build/device-test/rebuild-x11-extra-key/fresh-firstboot/`
+  `build/device-test/acceptance-2026-07-28/`
 
 Runtime log sequence:
 
@@ -83,6 +86,17 @@ dbus-daemon
 xfce4-panel
 ```
 
+Debian terminal and APT evidence:
+
+- XFCE terminal screenshot:
+  `build/device-test/acceptance-2026-07-28/panix-terminal-final-scaled-os-release-20260728.png`
+- Alpha.3 APT log:
+  `build/device-test/acceptance-2026-07-28/debian-acceptance-alpha3-apt-hello-20260728.log`
+- The log shows Debian 13/Trixie, `apt update`, `apt install hello`, `Hello, world!`, and `hello 2.10-5 install ok installed`.
+- `Open Debian Terminal` now launches `xfce4-terminal` inside bundled Debian
+  through Panix's bundled PRoot path; it no longer opens the Android/Termux
+  terminal activity.
+
 Termux and VNC dependency evidence:
 
 - Existing `com.termux`, `com.termux.api`, `com.termux.window`, and
@@ -104,40 +118,42 @@ Termux and VNC dependency evidence:
 | Sudoers rewrite failed with permission denied | Existing app-owned 0440 file could not be overwritten | Runtime file writer chmods existing app-owned read-only files before overwrite. |
 | Embedded X11 exited with code 137 | `libXlorie.so` was deflated in the APK, but `CmdEntryPoint` loads it directly from the APK path | Release packaging keeps native libraries uncompressed and the APK inspector enforces `Stored`. |
 | Embedded X11 exited during startup | XKB config root was not set for the embedded server | `PanixX11Bridge` sets `XKB_CONFIG_ROOT` to the bundled Debian rootfs XKB path. |
-| XFCE desktop was tiny on the phone | X11 display defaults used an unscaled desktop | `PanixHomeActivity` now defaults to scaled resolution, `displayScale=200`, fullscreen, and keeps the extra-key bar visible. |
+| XFCE desktop was tiny on the phone | X11 display defaults used an unscaled desktop or an older one-time scale profile | `PanixHomeActivity` now applies versioned scaled-resolution defaults, `displayScale=240`, fullscreen, and keeps the extra-key bar visible. |
+| Open Debian Terminal launched the Android terminal activity | The Panix menu still used the inherited Termux activity path | The menu now launches `xfce4-terminal` inside bundled Debian through Panix PRoot and prints `/etc/os-release`. |
+| APT proof could not be typed reliably through Android IME | XFCE terminal focus and soft keyboard input were unreliable through adb | Added `Run Debian APT Check`, which runs `apt update`, `apt install hello`, `hello`, and `dpkg-query` inside bundled Debian and writes `debian-acceptance.log`. |
 | Build script could print success after Gradle failed | Gradle output was piped through `tee`, so POSIX `sh` saw `tee` status | `scripts/build-panix.sh` now preserves Gradle failure status before printing `Built`. |
 
 ## Acceptance Matrix
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
-| Build/sign current `0.1.0-alpha.2` line | Pass for local test-signed APK | Current APK above, signed and verified with v2/v3 signatures. |
+| Build/sign current `0.1.0-alpha.3` line | Pass for local test-signed APK | Current APK above, signed and verified with v2/v3 signatures. |
 | Install on attached ARM64 Android target | Pass | Installed on CPH2499 with `adb install --no-incremental`. |
 | Panix opens from app icon | Not yet directly captured | Home launch is proven; launcher icon tap/monkey evidence still needed. |
 | Android offers/selects Panix as Home app | Pass | `set-home-activity` succeeded and activity resumed from `android.intent.category.HOME`. |
 | First boot requires no rootfs download | Pass | Runtime extracted `assets/debian-trixie-arm64-rootfs.tar.zst` from the APK. |
 | Bundled rootfs verified/extracted | Pass | `VERIFYING_ASSET`, `EXTRACTING`, `CONFIGURING`, `READY`, then `RUNNING`. |
 | Embedded X11 surface appears | Pass | Screenshot and `panix-x11` process/log evidence. |
-| XFCE usable desktop appears | Pass for desktop appearance | Screenshot shows XFCE panel, desktop icons, Panix overlay, and extra-key bar. |
-| Touch input works | Not yet captured | Needs deliberate tap evidence. |
-| Soft keyboard / extra-key controls | Partial | Extra-key bar is visible by default; soft keyboard open action still needs direct evidence. |
+| XFCE usable desktop appears | Pass | Screenshot shows scaled XFCE desktop icons, Panix overlay, and extra-key bar. |
+| Touch input works | Pass for Panix controls | Taps opened the Panix menu, Debian terminal, APT check, Android Apps, Android Settings, and Restart Desktop. |
+| Soft keyboard / extra-key controls | Pass for extra-key bar, partial for full IME | Extra-key bar is visible by default; earlier soft keyboard screenshot captured, but physical typing remains flaky through adb. |
 | Physical keyboard | Not applicable yet | No physical keyboard evidence captured. |
-| XFCE Terminal opens | Not yet captured | Required before final release. |
-| `/etc/os-release` identifies Debian 13 Trixie | Not yet captured | Required before final release. |
-| `apt update` works | Not yet captured | Required before final release. |
-| Installing a small Debian package works | Not yet captured | Required before final release. |
-| Repeated Home returns to same session without duplicate processes | Not yet captured | Required before final release. |
-| Android app round trip returns to Panix | Not yet captured | Required before final release. |
-| Killing/relaunching Panix recovers cleanly | Not yet captured | Required before final release. |
-| Restart Desktop works | Not yet captured | Required before final release. |
+| XFCE Terminal opens | Pass | Terminal screenshot above shows Debian os-release and `panix@localhost`. |
+| `/etc/os-release` identifies Debian 13 Trixie | Pass | Terminal screenshot and APT log show Debian 13/Trixie. |
+| `apt update` works | Pass | Alpha.3 APT log shows Debian repos hit and package lists current. |
+| Installing a small Debian package works | Pass | Alpha.3 APT log shows `hello 2.10-5 install ok installed` and `Hello, world!`. |
+| Repeated Home returns to same session without duplicate desktop | Pass | Repeated Home left one Panix app, one `panix-x11`, one XFCE session; extra terminal proots were from the terminal proof. |
+| Android app round trip returns to Panix | Pass | Panix opened Android Settings; pressing Home returned to `PanixHomeActivity`. |
+| Killing/relaunching Panix recovers cleanly | Pass for app force-stop/relaunch | Alpha.3 was force-stopped, relaunched as Home, and returned to `RUNNING`. |
+| Restart Desktop works | Pass | In-app Restart Desktop returned to `RUNNING` with fresh `panix-x11`/XFCE PIDs and desktop screenshot. |
 | Reset Debian works | Partial | `pm clear` plus fresh first boot works; in-app Reset Debian still needs direct evidence. |
 | No VNC server/viewer/TCP VNC dependency | Pass for APK/code/process evidence | APK has no VNC/RDP files and runtime process tree contains no VNC process. |
 | No separate Termux:X11 APK required | Pass | No `com.termux.x11` package installed; `panix-x11` starts from Panix APK `CLASSPATH`. |
 | Logs reveal actionable errors | Pass | Earlier device failures exposed tar, symlink, sudoers, X11 library, and XKB causes in logs. |
-| Required screenshots/logs captured | Partial | XFCE/Home screenshots and logs captured; terminal/os-release and Android Settings/app-drawer screenshots still needed. |
+| Required screenshots/logs captured | Mostly complete | XFCE/Home, scaled desktop, menu, terminal/os-release, APT, Android Apps, Android Settings, repeated Home, and restart screenshots/logs captured. |
 
 ## Release Decision
 
-Do not tag or publish final `v0.1.0` yet. The main boot gate is now green, but
-the terminal, Debian identity, APT, input, recovery, and session-resume checks
-still need direct device evidence.
+Publish `0.1.0-alpha.3` as a prerelease/test APK. Do not tag or publish final
+`v0.1.0` yet; in-app Reset Debian and a true clean first boot of this exact
+alpha.3 artifact still need a deliberate full pass.

@@ -105,6 +105,32 @@ public final class PanixRuntimeManager {
         worker.start();
     }
 
+    public static void openDebianTerminalAsync(Context context) {
+        Context appContext = context.getApplicationContext();
+        Thread worker = new Thread(() -> {
+            try {
+                openDebianTerminal(appContext);
+            } catch (Exception e) {
+                appendLog(appContext, "desktop", "Failed to open Debian terminal: " + (e.getMessage() == null ? e.toString() : e.getMessage()));
+                appendLog(appContext, "runtime", stackTrace(e));
+            }
+        }, "panix-open-debian-terminal");
+        worker.start();
+    }
+
+    public static void runDebianAcceptanceChecksAsync(Context context) {
+        Context appContext = context.getApplicationContext();
+        Thread worker = new Thread(() -> {
+            try {
+                runDebianAcceptanceChecks(appContext);
+            } catch (Exception e) {
+                appendLog(appContext, "debian-acceptance", "FAILED: " + (e.getMessage() == null ? e.toString() : e.getMessage()));
+                appendLog(appContext, "runtime", stackTrace(e));
+            }
+        }, "panix-debian-acceptance");
+        worker.start();
+    }
+
     static void stopDesktop(Context context) {
         Context appContext = context.getApplicationContext();
         setState(appContext, STATE_STOPPING, "Stopping Panix desktop supervisor.");
@@ -331,6 +357,132 @@ public final class PanixRuntimeManager {
         } catch (IllegalThreadStateException stillRunning) {
             setState(context, STATE_RUNNING, "Panix desktop supervisor is running.");
         }
+    }
+
+    private static void openDebianTerminal(Context context) throws Exception {
+        if (!STATE_RUNNING.equals(getStatus(context).state)) {
+            startDesktop(context);
+        }
+        if (!isRootfsInstalled(context)) {
+            throw new IOException("Debian rootfs is not installed.");
+        }
+        if (!isProotInstalled(context)) {
+            throw new IOException("Bundled PRoot payload is not installed.");
+        }
+
+        File desktopLog = new File(logDir(context), "desktop.log");
+        File x11TmpDir = x11TmpDir(context);
+        mkdirs(x11TmpDir);
+        mkdirs(exportDir(context));
+        mkdirs(new File(rootfsDir(context), "home/panix/Downloads"));
+
+        List<String> command = buildDebianCommand(context,
+            "mkdir -p \"$XDG_RUNTIME_DIR\" /home/panix/Downloads && chmod 700 \"$XDG_RUNTIME_DIR\" && " +
+                "exec xfce4-terminal --title 'Panix Debian Terminal' --command " +
+                "\"/bin/bash -lc 'cat /etc/os-release; exec /bin/bash -l'\"");
+
+        ProcessBuilder builder = new ProcessBuilder(command);
+        builder.directory(filesDir(context));
+        builder.redirectErrorStream(true);
+        builder.redirectOutput(ProcessBuilder.Redirect.appendTo(desktopLog));
+        builder.environment().put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH);
+        builder.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + ":/system/bin");
+        builder.environment().put("LD_LIBRARY_PATH", TermuxConstants.TERMUX_LIB_PREFIX_DIR_PATH);
+        builder.environment().put("PREFIX", TermuxConstants.TERMUX_PREFIX_DIR_PATH);
+        builder.environment().put("TMPDIR", x11TmpDir.getAbsolutePath());
+        builder.environment().put("PROOT_LOADER", prootLoader(context).getAbsolutePath());
+        builder.environment().put("PROOT_TMP_DIR", tmpDir(context).getAbsolutePath());
+
+        appendLog(desktopLog, "Opening Debian XFCE terminal.");
+        builder.start();
+    }
+
+    private static void runDebianAcceptanceChecks(Context context) throws Exception {
+        if (!STATE_RUNNING.equals(getStatus(context).state)) {
+            startDesktop(context);
+        }
+        if (!isRootfsInstalled(context)) {
+            throw new IOException("Debian rootfs is not installed.");
+        }
+        if (!isProotInstalled(context)) {
+            throw new IOException("Bundled PRoot payload is not installed.");
+        }
+
+        File acceptanceLog = new File(publicLogDir(context), "debian-acceptance.log");
+        mkdirs(acceptanceLog.getParentFile());
+        writeFile(acceptanceLog, "Panix Debian acceptance checks\n");
+
+        List<String> command = buildDebianRootCommand(context,
+            "set -e; " +
+                "echo '== os-release =='; cat /etc/os-release; " +
+                "echo '== apt update =='; apt update; " +
+                "echo '== apt install hello =='; env DEBIAN_FRONTEND=noninteractive apt install -y hello; " +
+                "echo '== hello =='; hello; " +
+                "echo '== dpkg hello =='; dpkg-query -W -f='${Package} ${Version} ${Status}\\n' hello");
+
+        ProcessBuilder builder = new ProcessBuilder(command);
+        builder.directory(filesDir(context));
+        builder.redirectErrorStream(true);
+        builder.redirectOutput(ProcessBuilder.Redirect.appendTo(acceptanceLog));
+        builder.environment().put("HOME", TermuxConstants.TERMUX_HOME_DIR_PATH);
+        builder.environment().put("PATH", TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + ":/system/bin");
+        builder.environment().put("LD_LIBRARY_PATH", TermuxConstants.TERMUX_LIB_PREFIX_DIR_PATH);
+        builder.environment().put("PREFIX", TermuxConstants.TERMUX_PREFIX_DIR_PATH);
+        builder.environment().put("TMPDIR", x11TmpDir(context).getAbsolutePath());
+        builder.environment().put("PROOT_LOADER", prootLoader(context).getAbsolutePath());
+        builder.environment().put("PROOT_TMP_DIR", tmpDir(context).getAbsolutePath());
+
+        appendLog(context, "debian-acceptance", "Starting Debian acceptance command.");
+        Process process = builder.start();
+        if (!process.waitFor(10, TimeUnit.MINUTES)) {
+            process.destroyForcibly();
+            throw new IOException("Debian acceptance command timed out.");
+        }
+        int exitCode = process.exitValue();
+        appendLog(context, "debian-acceptance", "Debian acceptance command exited with code " + exitCode + ".");
+        if (exitCode != 0) {
+            throw new IOException("Debian acceptance command failed with exit code " + exitCode + ". See debian-acceptance.log.");
+        }
+    }
+
+    private static List<String> buildDebianCommand(Context context, String shellCommand) {
+        return buildDebianCommand(context, shellCommand, "1000:1000", "/home/panix", "panix");
+    }
+
+    private static List<String> buildDebianRootCommand(Context context, String shellCommand) {
+        return buildDebianCommand(context, shellCommand, "0:0", "/root", "root");
+    }
+
+    private static List<String> buildDebianCommand(Context context, String shellCommand, String changeId, String home, String user) {
+        File x11TmpDir = x11TmpDir(context);
+        List<String> command = new ArrayList<>();
+        command.add(prootBinary(context).getAbsolutePath());
+        command.add("--rootfs=" + rootfsDir(context).getAbsolutePath());
+        command.add("--link2symlink");
+        command.add("--sysvipc");
+        command.add("--ashmem-memfd");
+        command.add("--change-id=" + changeId);
+        command.add("--bind=/dev");
+        command.add("--bind=/proc");
+        command.add("--bind=/sys");
+        command.add("--bind=" + x11TmpDir.getAbsolutePath() + ":/tmp");
+        command.add("--bind=" + exportDir(context).getAbsolutePath() + ":/home/panix/Downloads");
+        command.add("--cwd=" + home);
+        command.add("/usr/bin/env");
+        command.add("-i");
+        command.add("HOME=" + home);
+        command.add("USER=" + user);
+        command.add("LOGNAME=" + user);
+        command.add("SHELL=/bin/bash");
+        command.add("DISPLAY=" + PanixX11Bridge.DISPLAY);
+        command.add("LANG=C.UTF-8");
+        command.add("TMPDIR=/tmp");
+        command.add("XDG_RUNTIME_DIR=/tmp/panix-runtime");
+        command.add("PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin");
+        command.add("/bin/bash");
+        command.add("-lc");
+        command.add(shellCommand);
+        return command;
     }
 
     private static void installProotPayload(Context context) throws Exception {

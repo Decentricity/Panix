@@ -50,7 +50,7 @@ Implemented and device-proven behavior on 2026-07-26:
 
 The current local test build reached `RUNNING` on the attached CPH2499 phone.
 Evidence is recorded in `docs/TEST-REPORT.md` and
-`docs/images/panix-extra-key-firstboot-xfce.png`.
+`docs/images/panix-scaled-firstboot-xfce.png`.
 
 Required invariant:
 
@@ -60,7 +60,6 @@ after verification and health checks pass.
 
 Remaining first-boot/recovery evidence needed before final `v0.1.0`:
 
-- In-app Restart Desktop.
 - In-app Reset Debian.
-- Kill/relaunch recovery.
-- Repeated Home behavior without duplicate desktop processes.
+- True clean first boot of the exact final artifact.
+- Physical keyboard behavior.

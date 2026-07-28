@@ -1,15 +1,15 @@
 # Known Issues
 
 - No final `v0.1.0` release APK has passed the complete acceptance suite yet.
-- The main on-device boot gate now passes for the local `0.1.0-alpha.2` test
+- The main on-device boot gate now passes for the local `0.1.0-alpha.3` test
   build: Panix installs on the attached ARM64 phone, can be selected as Home,
-  verifies/extracts the bundled Debian rootfs, starts embedded X11, and reaches
-  XFCE with runtime state `RUNNING`.
-- Remaining release blockers are evidence gaps, not the earlier black-screen
-  boot failure: XFCE Terminal, `/etc/os-release`, `apt update`, small package
-  install, direct touch/keyboard checks, repeated Home behavior, Android app
-  round trip, in-app Restart Desktop, in-app Reset Debian, and recovery after
-  killing/relaunching Panix still need device proof.
+  verifies/extracts the bundled Debian rootfs, starts embedded X11, reaches
+  XFCE with runtime state `RUNNING`, opens a Debian XFCE terminal, runs
+  `apt update`, and installs/runs `hello`.
+- Remaining release blockers are now narrower evidence gaps, not the earlier
+  black-screen boot failure: in-app Reset Debian, a true clean first boot of
+  the exact final artifact, physical keyboard proof, and launcher-icon tap
+  proof still need device evidence before final `v0.1.0`.
 - Termux must not be removed from the test phone. Panix independence should be
   proven from APK contents, code paths, packages, and processes. Current
   evidence shows Panix uses its own package, bundled PRoot/rootfs, and embedded

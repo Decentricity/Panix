@@ -24,12 +24,13 @@ import android.widget.TextView;
 
 import com.termux.app.PanixRuntimeManager;
 import com.termux.app.PanixRuntimeService;
-import com.termux.app.TermuxActivity;
 
 import java.util.Collections;
 import java.util.List;
 
 public final class PanixHomeActivity extends MainActivity {
+
+    private static final int PANIX_DISPLAY_DEFAULTS_VERSION = 2;
 
     private final Handler panixStatusHandler = new Handler(Looper.getMainLooper());
     private final Runnable panixStatusPoller = new Runnable() {
@@ -96,18 +97,26 @@ public final class PanixHomeActivity extends MainActivity {
     }
 
     private void applyPanixDisplayDefaults() {
-        if (prefs == null || prefs.get().getBoolean("panixDisplayDefaultsApplied", false)) {
+        if (prefs == null) {
+            return;
+        }
+        int appliedVersion = prefs.get().getInt(
+            "panixDisplayDefaultsVersion",
+            prefs.get().getBoolean("panixDisplayDefaultsApplied", false) ? 1 : 0);
+        if (appliedVersion >= PANIX_DISPLAY_DEFAULTS_VERSION) {
             return;
         }
 
         prefs.displayResolutionMode.put("scaled");
         prefs.get().edit()
-            .putInt("displayScale", 200)
+            .putString("displayResolutionMode", "scaled")
+            .putInt("displayScale", 240)
             .putBoolean("displayStretch", false)
             .putBoolean("fullscreen", true)
             .putBoolean("showAdditionalKbd", true)
             .putBoolean("additionalKbdVisible", true)
             .putBoolean("panixDisplayDefaultsApplied", true)
+            .putInt("panixDisplayDefaultsVersion", PANIX_DISPLAY_DEFAULTS_VERSION)
             .commit();
         onPreferencesChanged("panixDisplayDefaultsApplied");
     }
@@ -135,6 +144,7 @@ public final class PanixHomeActivity extends MainActivity {
     private void showPanixMenu() {
         String[] items = new String[] {
             "Open Debian Terminal",
+            "Run Debian APT Check",
             "Open Panix Logs",
             "Restart Desktop",
             "Stop Desktop",
@@ -154,30 +164,33 @@ public final class PanixHomeActivity extends MainActivity {
                         openPanixTerminal();
                         break;
                     case 1:
-                        showPanixLogs();
+                        PanixRuntimeManager.runDebianAcceptanceChecksAsync(this);
                         break;
                     case 2:
-                        PanixRuntimeService.requestRestartDesktop(this);
+                        showPanixLogs();
                         break;
                     case 3:
-                        PanixRuntimeService.requestStopDesktop(this);
+                        PanixRuntimeService.requestRestartDesktop(this);
                         break;
                     case 4:
-                        confirmResetDebian();
+                        PanixRuntimeService.requestStopDesktop(this);
                         break;
                     case 5:
-                        MainActivity.toggleKeyboardVisibility(this);
+                        confirmResetDebian();
                         break;
                     case 6:
-                        showAndroidApps();
+                        MainActivity.toggleKeyboardVisibility(this);
                         break;
                     case 7:
-                        startActivity(new Intent(Settings.ACTION_SETTINGS));
+                        showAndroidApps();
                         break;
                     case 8:
-                        openDisplaySettings();
+                        startActivity(new Intent(Settings.ACTION_SETTINGS));
                         break;
                     case 9:
+                        openDisplaySettings();
+                        break;
+                    case 10:
                         requestHomeRole();
                         break;
                     default:
@@ -188,9 +201,7 @@ public final class PanixHomeActivity extends MainActivity {
     }
 
     private void openPanixTerminal() {
-        Intent intent = new Intent(this, TermuxActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(intent);
+        PanixRuntimeManager.openDebianTerminalAsync(this);
     }
 
     private void openDisplaySettings() {

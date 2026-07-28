@@ -109,6 +109,7 @@ public final class PanixHomeActivity extends Activity {
         panel.addView(button("Open X11 Surface", v -> openX11Surface()));
         panel.addView(button("Open Panix Logs", v -> showPanixLogs()));
         panel.addView(button("Open Panix Terminal", v -> openPanixTerminal()));
+        panel.addView(button("Run Debian APT Check", v -> PanixRuntimeManager.runDebianAcceptanceChecksAsync(this)));
         panel.addView(button("Android Apps", v -> showAndroidApps()));
         panel.addView(button("Android Settings", v -> startActivity(new Intent(Settings.ACTION_SETTINGS))));
         panel.addView(button("Choose Home App", v -> requestHomeRole()));
@@ -161,9 +162,7 @@ public final class PanixHomeActivity extends Activity {
     }
 
     private void openPanixTerminal() {
-        Intent intent = new Intent(this, TermuxActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-        startActivity(intent);
+        PanixRuntimeManager.openDebianTerminalAsync(this);
     }
 
     private void openX11Surface() {

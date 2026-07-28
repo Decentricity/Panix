@@ -47,15 +47,16 @@ Debian GUI application
 
 Device evidence:
 
-- On 2026-07-26, the local `0.1.0-alpha.2` test build booted the bundled
+- On 2026-07-28, the local `0.1.0-alpha.3` test build booted the bundled
   Debian/XFCE desktop as Android Home on a CPH2499 ARM64 phone. The runtime
   reached `RUNNING` with `io.github.decentricity.panix`, `panix-x11`, bundled
-  `proot`, and `xfce4-session` processes. See `docs/TEST-REPORT.md`.
+  `proot`, and `xfce4-session` processes, and Debian `apt update`/`hello`
+  checks passed inside the bundled rootfs. See `docs/TEST-REPORT.md`.
 
 Major remaining implementation boundaries:
 
-- Complete the remaining device acceptance evidence for terminal, Debian
-  identity, APT, input, recovery, and repeated Home/session behavior.
+- Complete the remaining final-release evidence for in-app Reset Debian, true
+  clean first boot of the exact final artifact, and physical keyboard behavior.
 - Replace `com.termux.x11` package assumptions in loader, broadcasts, and native
   code where they conflict with Panix package identity.
 - Replace `/data/data/com.termux` native path assumptions with Panix paths where
